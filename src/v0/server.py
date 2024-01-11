@@ -27,7 +27,7 @@ cache.init_app(app)
 # app.config['MYSQL_HOST'] = 'spectre219'
 # app.config['MYSQL_USER'] = 'root'
 # app.config['MYSQL_PASSWORD'] = '1337'
-# app.config['MYSQL_DB'] = 'lstand_db_2'
+# app.config['MYSQL_DB'] = 'lstand_db'
 
 port = 8888
 host = "0.0.0.0"
@@ -302,9 +302,6 @@ def post_player_recipe_update():
     }
 
     """
-    
-    # dumps ??
-    
     try:
         # Extract data from the JSON request
         data = request.json
