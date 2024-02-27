@@ -1,13 +1,37 @@
+'''
+user_service.py
+
+    used to provide user service api
+    uses mysql db and flask.
+
+'''
+
+'''
+
+    standard imports:
+        - flask
+        - marshmallow
+'''
 from flask import Flask, jsonify, request
 from flask_caching import Cache
 from marshmallow import Schema, fields, ValidationError
 from marshmallow.validate import Range
-from firebase_handler import FirebaseHandler
-#from mysql_handler import MySQLHandler  # Import the MySQLHandler class
-#from flask_mysqldb import MySQL  
 import MySQLdb
 import datetime
 import json
+
+import logging
+
+'''
+
+    core imports
+    
+
+'''
+from firebase_handler import FirebaseHandler
+#from mysql_handler import MySQLHandler  # Import the MySQLHandler class
+#from flask_mysqldb import MySQL  
+
 
 app = Flask(__name__)
 
@@ -19,16 +43,25 @@ db = MySQLdb.connect(host="localhost",    # your host, usually localhost
                      db="lstand_db_2")        # name of the data base
 
 
-
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)  # Set the desired logging level
+logger = logging.getLogger(__name__)  
 
 class UserService:
     '''
     UserService class
     
-    flask
-    mysql
-    
     should provide user, player, actor uses action to create, sign-in,
+    
+    potentially move unrelated direct user services to separate file?
+        - recipe, inventory, items, day, streak
+        - keep security, update, init, etc 
+    
+    features:
+        - sign-in
+        - log-in
+        - init user functions (inventory, recipe, ...)
+        
     
     '''
     
@@ -57,7 +90,111 @@ class UserService:
     #
     #   player_avatar_unlocked table
     #
+    #   id, avatar_id, border_id
+    #
     ###########
+    
+    # def init_player_avatar
+    
+    def init_player_avatar_start(self, player_id):
+        """
+        Initialize the starting avatar for the player
+        using player_id.
+        
+        To be called in player create.
+        """
+    
+        cur = db.cursor()
+        
+        
+        insert_sql = """
+            INSERT INTO player_avatar (player_id, avatar_id, profile_border_id)
+            VALUES (%s, 0, 0);
+        """
+        
+        
+        try:
+            cur.execute(insert_sql, (player_id,))
+            #player_id = cur.lastrowid   # Obtain the player_id for the specified username
+            db.commit()
+            print(f"Starting items initialized for player ID {player_id}")
+        except Exception as e:
+            # Rollback in case there is any error
+            raise Exception(f"An error occurred while initializing starting avatar for player ID {player_id}: {e}")
+        finally:
+            cur.close()
+            
+        
+    # def player_avatar_change_avatar
+    # def player_avatar_change_border
+    
+    # def player_avatar_check_border # check member expiry to change border
+    
+    # def get_player_avatar_player_id
+  
+    # def get_player_avatar_player_username
+  
+    def post_player_avatar_by_id(self, player_id):
+        """
+        Retrieve player avatars by player_id.
+        """
+
+        cur = db.cursor()
+        select_sql = """
+            SELECT *
+            FROM player_avatar
+            WHERE player_id = %s
+        """
+
+        try:
+            cur.execute(select_sql, (player_id,))
+            avatars = cur.fetchall()
+            if avatars:
+                return avatars, 200
+            else:
+                return {"message": f"No avatars found for player ID {player_id}"}, 404
+        except Exception as e:
+            return {"error": str(e)}, 500
+        finally:
+            cur.close()
+    
+    
+    ####
+    #
+    # item - service
+    #
+    ##
+    @staticmethod
+    def get_item_id(item_name):
+        """
+        Given an item name, retrieve the corresponding item_id from the database.
+        This function needs to be implemented based on your specific database schema.
+        """
+        try:
+            # Create a cursor
+            # cursor = db.cursor(dictionary=True)
+            cursor = db.cursor()
+
+            # Execute the SQL query to fetch the item_id based on the item_name
+            query = 'SELECT id FROM item WHERE name = %s'
+            cursor.execute(query, (item_name,))
+
+            # Fetch the result
+            result = cursor.fetchone()
+
+            # Close the cursor and database connection
+            #cursor.close()
+            #db.close()
+            # prevent from affecting closing other method
+
+            # Return the item_id if found, otherwise return None
+            return result[0] if result else None # Access id using its index in the tuple
+
+        except Exception as e:
+            printf(f"Error fetching item_id for item name {item_name}: {e}")
+            return None
+
+    
     
     
     #####################
@@ -69,13 +206,93 @@ class UserService:
     ##################
     #
     #   player_membership
+    #   - bool memberships(state)
+    #   - string membership_status
+    #   - timestamp membership_expiry
+    #
+    #   notes:
+    #   - string state_members, 
+    #   - timestamp time_members, membership/length
+    #
     #
     ###########
     
-    #def get_player_membership_status()
+    def get_player_membership_bool(self, _id):
+        '''
+        Retrieves player's membership boolean variable
+        - false: normal user
+        - true: member user
+        
+        
+        Implement try-catch
+        '''
+        query = 'SELECT player.player_membership FROM player WHERE id = %s;'
+        
+        cur = db.cursor()
+        cur.execute(query, (_id,))
+        db.commit()
+        
+        results = cur.fetchone()  # Fetch the first record
+
+        if results is not None:
+            print(f"Fetching player_membership from Player {_id}")
+            return results[0]  # Return the player_membership
+        else:
+            print("No user result found")
+            return None
     
     
-    #def get_player_membership_timer()
+    def get_player_membership_status():
+        '''
+        get the membership_status string
+        0 - never member ( normal user )
+        1 - member user
+        3 - ex-member user
+        4 - bond user
+        5 - tier member ?
+        9 - super user ?
+        ???
+        '''
+    
+    #def change_player_membership_status()
+    
+    #def update_player_membership_timer
+    
+    #
+    
+    def get_player_membership_timer(self, _id):
+        '''
+        get_player_membership_timer function -> timer ->> expiry?
+        
+        Retrieves player's membership_expiry variable field.
+        
+        This data, player_membership_expiry, contains the player's 
+        last and/or next time (timestamp) of the player's membership.
+        
+        
+        notes:
+        
+        - returns null, if never member -> normal_user
+        - returns new timer -> member
+        - returns old timer -> ex-member
+        
+        
+        
+        '''
+        query = 'SELECT player.player_membership_expiry FROM player WHERE id = %s;'
+        
+        cur = db.cursor()
+        cur.execute(query, (_id,))
+        db.commit()
+        
+        results = cur.fetchone()  # Fetch the first record
+
+        if results is not None:
+            print(f"Fetching player_membership_expiry from Player {_id}")
+            return results[0]  # Return the player_membership
+        else:
+            print("No user result found")
+            return None
     
     
     
@@ -83,15 +300,27 @@ class UserService:
     #
     #   player_streak
     #
+    #   user calls get_streak_counter
+    #   streak_check should be called as well
+    #       - call increaseStreakTimer
+    #       - call resetStreakTimer -> check streakFreeze, save streakTimer
+    #       - return StreakTimer
+    #
     ###########
         
     
     def get_streak_counter(self, _id):
         '''
-        '''
-        query = 'SELECT player_streak FROM player WHERE id = %s;'
+        function that is called by api
         
-        cur = db.cursor()
+        notes:
+        
+        -   removed: db.commit()
+        
+        -   added try-catch
+        
+        
+        
         cur.execute(query, (_id,))
         db.commit()
         
@@ -103,6 +332,38 @@ class UserService:
         else:
             print("No user result found")
             return None
+        cur.close()
+        
+        '''
+        cur = db.cursor()
+        
+        query = 'SELECT player_streak FROM player WHERE id = %s;'
+        
+        
+        try:
+            # Execute the query
+            cur.execute(query, (_id,))
+
+            # Fetch all records
+            results = cur.fetchone() 
+            
+            if results:
+                # Return all results as a list
+                print(f"Fetching player_streak from Player {_id}")
+                return results[0]
+            else:
+                print(f"No streak found for player ID {player_id}")
+                return None
+
+        except Exception as e:
+            # Handle the exception
+            print(f"Error fetching streak item for player ID {player_id}: {e}")
+
+        finally:
+            # cur.fetchall()
+            cur.close()
+            
+        
     
     def check_streak_timer():
         '''
@@ -165,6 +426,10 @@ class UserService:
     def increase_day_counter(self, _id):
         '''
         called during specific events in game to increase player's days.
+        
+        notes:
+        
+        - needs try-catch statement
         '''
         # First, fetch the current player_days
         cur = db.cursor()
@@ -188,9 +453,14 @@ class UserService:
         return new_days
 
     
-    def get_day_counter(self, _id):
+    def get_day_counter_OLD(self, _id):
         '''
         retrieves player_days by id
+        
+        notes:
+        
+        - needs try-catch statement
+        - cur.close
         
         '''
     
@@ -208,6 +478,42 @@ class UserService:
         else:
             print("No user result found")
             return None
+            
+    def get_day_counter(self, _id):
+        '''
+        retrieves player_days by id
+        
+        notes:
+        
+        - needs try-catch statement
+        - cur.close
+        
+        '''
+    
+        query = 'SELECT player_days FROM player WHERE id = %s;'
+    
+        try:
+            with db.cursor() as cur:
+                cur.execute(query, (_id,))
+                db.commit()
+                
+                results = cur.fetchone()  # Fetch the first record
+
+                if results is not None:
+                    print(f"Fetching player_days from Player {_id}")
+                    return results[0]  # Return the player_days
+                else:
+                    print("No user result found")
+                    return None
+        
+        except pymysql.Error as e:
+            # Handle MySQL database-related exceptions
+            print(f"Error fetching player_days for Player {_id}: {e}")
+            return None
+        
+        finally:
+            # Close the cursor
+            cur.close()
         
         
     def get_player_lives(self, _id):
@@ -271,10 +577,15 @@ class UserService:
     
     
     ####
+    # OLD NOTES
     #
     # player_members:: player_id, members_status, membership_expiry, membership_timer, 
     #
     ####
+    
+    # post_player_membership_status
+    # post_player_membership_expiry
+    # post_player_membership_timer
     
   
     ########################
@@ -286,7 +597,14 @@ class UserService:
   
     def create_player(self, email, username, password, first_name, last_name, dob):
         '''
-        need to implement player_membership, among other
+        notes:
+            - need to init membership time so that its not null 
+            - need to implement standard init time so that can see if not null 1,1,1999
+            - need to implement init profile avatar + profile border
+            - implement player_mana
+        
+        old notes:
+            - need to implement player_membership, among other
         '''
         cur = db.cursor()
         
@@ -319,7 +637,7 @@ class UserService:
             );
         '''
 
-        query = '''
+        query_OLD = '''
         INSERT INTO player (
                 player_days, player_lives, player_lives_status, player_streak, player_streak_timer,
                 player_networth, player_location, player_offers_notifications,
@@ -350,6 +668,41 @@ class UserService:
                 '' -- player_membership_status
             );
         '''
+        
+        
+        
+        query = '''
+        INSERT INTO player (
+                player_days, player_lives, player_lives_status, player_streak, player_streak_timer,
+                player_networth, player_location, player_offers_notifications,
+                player_trade_requests, player_inbox_messages, player_private, player_hide,
+                main_level, total_level, total_xp, quest_points, quest_level,
+                player_membership, player_membership_expiry, player_membership_status
+            )
+            VALUES (
+                0, -- player_days
+                10, -- player_lives
+                '', -- player_lives_status
+                0, -- player_streak
+                CURRENT_TIMESTAMP, -- player_streak_timer
+                0, -- player_networth
+                '', -- player_location
+                0, -- player_offers_notifications
+                0, -- player_trade_requests
+                0, -- player_inbox_messages
+                0, -- player_private
+                0, -- player_hide
+                0, -- main_level
+                0, -- total_level
+                0, -- total_xp
+                0, -- quest_points
+                0, -- quest_level
+                0, -- player_membership
+                STR_TO_DATE('1,1,1999', '%m,%d,%Y'), -- Default membership expiry (1st January 1999)
+                '' -- player_membership_status
+            );
+        '''
+
 
         try:
             # player -> player_security
@@ -407,6 +760,9 @@ class UserService:
         
         Returns:
         - Player's email if found, None otherwise
+        
+        
+        implement try-catch statement
         '''
         query = 'SELECT email FROM player_security WHERE player_id = %s;'
 
@@ -434,6 +790,8 @@ class UserService:
         
         Returns:
         - Player's ID if found, None otherwise
+        
+        implement try-catch statment
         '''
         query = 'SELECT id FROM player WHERE username = %s;'
 
@@ -463,18 +821,25 @@ class UserService:
         '''
         query = 'SELECT username FROM player_security WHERE player_id = %s;'
 
-        cur = db.cursor()
-        cur.execute(query, (player_id,))
-        db.commit()
+        try:
+            cur = db.cursor()
+            cur.execute(query, (player_id,))
+            db.commit()
 
-        result = cur.fetchone()  # Fetch the first record
+            result = cur.fetchone()  # Fetch the first record
 
-        if result is not None:
-            print(f"Fetching username from Player {player_id}")
-            return result[0]  # Return the username
-        else:
-            print("No username found")
+            if result is not None:
+                print(f"Fetching username from Player {player_id}")
+                return result[0]  # Return the username
+            else:
+                print("No username found")
+                return None
+        except Exception as e:
+            print(f"An error occurred while fetching username for Player {player_id}: {e}")
             return None
+        finally:
+            cur.close()
+
 
     
 
@@ -486,6 +851,9 @@ class UserService:
         init player start (?)
         
         calls: player_update, player_items, player_inventory
+        
+        player_mana
+        
         
         """
         
@@ -522,6 +890,7 @@ class UserService:
             self.init_player_inventory_start(player_id)
             self.init_player_recipes_start(player_id)
             #init weather
+            self.init_player_avatar_start(player_id)
       
 
             print(f"Player {player_id} initialized successfully with player ID")
@@ -615,6 +984,8 @@ class UserService:
     #  security 
     #
     #################
+    
+    # post_player_verify ?
     
     # post_user_request_change_password
     
@@ -774,6 +1145,10 @@ class UserService:
     # def get specific current_level player_level by id
     
     def init_player_levels_start(self, player_id):
+        '''
+        Instantiate the player levels starting levels upon
+        user creation. Gives the player each level at 1.
+        '''
         
         
         
@@ -828,8 +1203,10 @@ class UserService:
         pass
     
     def post_level_increase(self, player_id, level_id):
-    # call current lvl increase, total lvl increase
-
+        '''
+        call current lvl increase, total lvl increase
+        '''
+ 
         cur = db.cursor()
         query = '''
             UPDATE player_levels
@@ -931,12 +1308,15 @@ class UserService:
         pass
         
     def post_player_item_sell():
-        pass
-        
+        pass  
     
     def post_player_items_buy_item(self, player_id, item_id, balance_minus, item_quantity):
-        
+        '''
+        post_player_items_buy_item
+        player purchase item from shop/else by function
+        '''
         balance_minus = int(balance_minus)
+        #double??
 
         # Get the player's current balance
         balance = self.get_player_items_balance(player_id)
@@ -981,10 +1361,10 @@ class UserService:
         print(f"Player ID {player_id} successfully bought {item_quantity} of item ID {item_id}.")
 
     
-    
+    #  MAJOR CHANGES TO BALANCE IF <currencies> moved
     def get_player_items_balance(self, player_id):
         '''
-        MAJOR CHANGES TO BALANCE IF <currencies> moved
+        Error fetching Balance item for player ID 25: (2014, "Commands out of sync; you can't run this command now")
         '''
         cur = db.cursor()
         query = '''
@@ -1000,19 +1380,38 @@ class UserService:
 
             # Fetch all records
             results = cur.fetchall()
+            #results = cur.fetchone()
 
             if results:
                 # Return all results as a list
                 return results
             else:
                 print(f"No Balance item found for player ID {player_id}")
+                logger.info(f"No Balance item found for player ID {player_id}")
                 return None
+
+        except pymysql.Error as e:
+            if isinstance(e, pymysql.MySQLError):
+                # Handle MySQL database-related exceptions
+                logger.error(f"MySQL Error fetching Balance item for player ID {player_id}: {e}")
+            elif isinstance(e, pymysql.IntegrityError):
+                # Handle integrity constraint violations
+                logger.error(f"Integrity Error fetching Balance item for player ID {player_id}: {e}")
+            else:
+                # Handle other pymysql errors
+                logger.error(f"Error fetching Balance item for player ID {player_id}: {e}")
 
         except Exception as e:
             # Handle the exception
             print(f"Error fetching Balance item for player ID {player_id}: {e}")
 
         finally:
+            # consume
+            try:
+                cur.fetchall()
+            except pymysql.Error as e:
+                pass  # Ignore any errors during result consumption
+
             # Close the cursor and database connection
             cur.close()
             #db.close()
@@ -1209,8 +1608,17 @@ class UserService:
     
         return
         
-    # get items
+   
     def get_player_items(self, player_id):
+        '''
+        get player_items function
+        get items
+        
+        checked for errors [ o ]
+        
+        '''
+        
+        
         query = '''
             SELECT * FROM player_items
             WHERE player_id = %s;
@@ -1329,11 +1737,360 @@ class UserService:
     #
     ##############
     
+    # def post_copy_recipe - copy to another/duplicate
+    
+    # def post_share_recipe - share json?
+    
+    # def post recipe rename
+    # def post recipe deactivate
+    # def post recipe activate
+    
+    # def get_player_recipe_check
+    # check active recipes - call recipe active
+    # check items quantity with recipe
+    # return true if items quantity > 1 recipes
+    # return false if less items than 1 recipe
+    
+    
+    
+    def get_player_recipe_active(self, player_id):
+        '''
+        
+        # def get_player_recipe_active
+        
+        '''
+        
+        # for loop 1-4
+        # using get_player_recipe
+        
+        #check which is / are active
+        # and return recipe
+    
+    
+    
+    def post_player_recipes_use_pitcher(self, recipe_table, player_id):
+        '''
+        separate use recipe function for pitchers
+        '''
+    
+    def post_player_recipes_use_active(self, player_id):
+        '''
+        use but check which active using function calls
+        
+        '''
+        # call get active
+        # call get recipe
+        
+        # then, use recipe
+    
+    # TODO : working on
+    def post_player_recipes_use(self, recipe_table, player_id):
+        '''
+        using table param, use recipe
+        
+        '''
+        cur = db.cursor()
+
+        
+        # Dynamic query to fetch the recipe
+        query = f'''
+            SELECT * FROM {recipe_table} 
+            WHERE player_id = %s;
+        '''
+        
+        # Query to check player items quantity
+        query_quantity = '''
+            SELECT * FROM player_items
+            WHERE player_id = %s AND item_id = %s;
+        '''
+        
+        # Query to update player items quantity after using the recipe
+   
+        query_use = '''
+            UPDATE player_items
+            SET quantity = %s
+            WHERE player_id = %s AND item_id = %s;
+        '''
+        
+        recipe_result = None
+        recipe_check = False
+        
+        # Fetch the recipe - State 1
+        try:
+            # Execute the query
+            cur.execute(query, (player_id,))
+
+            # Fetch all records
+            results = cur.fetchone()
+
+            if results:
+                # using results in next state
+                recipe_result = results
+            else:
+                print(f"No player recipe {recipe_table} found for player ID {player_id}")
+                return None
+
+        except Exception as e:
+            print(f"Error fetching player recipe {recipe_table}  for player ID {player_id}: {e}")
+
+        finally:
+            # Consume the result set to avoid "Commands out of sync" error
+            # using fetchone
+            # cur.fetchall()
+            # Close the cursor and database connection
+            # cur.close() - > dont lol
+            print('finally')
+        
+        # Use the recipe - State 2
+        if recipe_result:
+            print(f"Using recipe {recipe_table} :: {recipe_result}")
+
+            # Parse recipe_result
+            #ingredients_json = json.loads(recipe_result['ingredients'])
+            ingredients_json = json.loads(recipe_result[-1])
+
+            # Check if player has sufficient items for the recipe
+            for category, items in ingredients_json.items():
+                for item, details in items.items():
+                    item_id = self.get_item_id(item)  # Define a function to get the item_id based on item name
+
+                    # Fetch player items quantity
+                    try:
+                        cur.execute(query_quantity, (player_id, item_id))
+                        player_item = cur.fetchone()
+
+                        if player_item:
+                            player_quantity = player_item[2]  # Access quantity using its index in the tuple
+                            recipe_quantity = details['amount']
+
+                            # Check if player has enough quantity of the item
+                            if player_quantity < recipe_quantity:
+                                recipe_check = True
+                                break
+
+                        else:
+                            print(f"Item {item} not found for player ID {player_id}")
+
+                    except Exception as e:
+                        print(f"Error fetching player item quantity for {item} and player ID {player_id}: {e}")
+
+            # Reduce items if all >= recipe amount
+            if not recipe_check:
+                try:
+                    for category, items in ingredients_json.items():
+                        for item, details in items.items():
+                            item_id = self.get_item_id(item)
+                            recipe_quantity = details['amount']
+
+                            # Update player items quantity after using the recipe
+                            if recipe_quantity != 0:
+                                cur.execute(query_use, (player_quantity - recipe_quantity, player_id, item_id))
+
+                    # Commit the transaction
+                    db.commit()
+                    print(f"Recipe {recipe_table} used successfully for player ID {player_id}")
+
+                except Exception as e:
+                    print(f"Error updating player items quantity after using the recipe for player ID {player_id}: {e}")
+                    db.rollback()
+
+        elif recipe_check:
+            print(f"No sufficient items for {recipe_table} for player ID {player_id}")
+
+        else:
+            print(f"No result {recipe_table} for player ID {player_id}")
+        
+        
+        # need to check if valid recipe use
+        
+        # also give the user the recipe profit.
+        # pricing_json = json.loads(recipe_result[7])
+        # cur.execute(query_use, (pricing_json, player_id, item_id))
+        balance_plus = str(recipe_result[7])
+
+        # Get the player's current balance
+        balance = self.get_player_items_balance(player_id)
+        if balance is None:
+            print(f"Player ID {player_id} does not have a Balance item.")
+            return
+
+        # Increase the cost of the item from the player's balance
+        balance_plus = float(balance_plus)
+        new_balance = balance[0][3] + balance_plus
+        query_new = '''
+            UPDATE player_items
+            SET quantity = %s
+            WHERE player_id = %s AND item_id = %s;
+        '''
+        cur = db.cursor()
+        new_balance_str = str(new_balance)
+        try:
+            cur.execute(query_new, (new_balance_str, player_id, balance[0][1]))
+            db.commit()
+            print(f"Recipe used successfully for player ID {player_id}")
+
+        except Exception as e:
+            print(f"Error updating Balance item for player ID {player_id}: {e}")
+        
+        finally:
+            cur.close()
+
+
+        # finally 
+        # cur.close
+        
+    
+    # def post_player_recipes_all_use
+    # def post_player_recipes_perk_use
+    
+    # def post_player_recipe_default_use():
+    
+    
+    def use_player_recipe(self, player_id):
+        '''
+        Unfinished, Old, Unbinded
+        
+        use recipe , uses active recipe
+        
+        post player recipe active use
+        
+        for loop to check for active recipes after retrieval
+        
+        then use the recipe against player items
+        
+              
+        check active recipes - select
+        using active, update items - update
+        
+        '''
+        cur = db.cursor()
+        
+        # for loop:  for(int i = 0; i < 4; i++)
+        
+        index_recipe = 0
+        recipe_json = ''
+        
+        
+        query1 = '''
+            SELECT * FROM player_recipe1
+            WHERE player_id = %s;
+        '''
+        query2 = '''
+            SELECT * FROM player_recipe2
+            WHERE player_id = %s;
+        '''
+        query3 = '''
+            SELECT * FROM player_recipe3
+            WHERE player_id = %s;
+        '''
+        query4 = '''
+            SELECT * FROM player_recipe4
+            WHERE player_id = %s;
+        '''
+        
+        # try catch - check for active true
+        try:
+            # Execute the query
+            cur.execute(query1, (player_id,))
+
+            # Fetch all records
+            results = cur.fetchall()
+
+            if results:
+                # Return if active recipe
+                if(results['recipes'][0] == true):
+                    index_recipe = 1
+                    recipe_json = results[0]
+            else:
+                print(f"No player recipes 1 found for player ID {player_id}")
+        except Exception as e:
+            print(f"Error fetching player recipes 1 for player ID {player_id}: {e}")
+        finally:
+            cur.fetchall()
+            cur.close()
+        
+        
+        if(index_recipe == 0):
+            try:
+                # Execute the query
+                cur.execute(query2, (player_id,))
+
+                # Fetch all records
+                results = cur.fetchall()
+
+                if results:
+                    # Return if active recipe
+                    if(results[recipes][0] == true):
+                        index_recipe = 2
+                else:
+                    print(f"No player recipes 2 found for player ID {player_id}")
+            except Exception as e:
+                print(f"Error fetching player recipes 2 for player ID {player_id}: {e}")
+            finally:
+                cur.fetchall()
+                cur.close()
+                
+        if(index_recipe == 0):
+            try:
+                # Execute the query
+                cur.execute(query2, (player_id,))
+
+                # Fetch all records
+                results = cur.fetchall()
+
+                if results:
+                    # Return if active recipe
+                    if(results[recipes][0] == true):
+                        index_recipe = 3
+                else:
+                    print(f"No player recipes 3 found for player ID {player_id}")
+            except Exception as e:
+                print(f"Error fetching player recipes 3 for player ID {player_id}: {e}")
+            finally:
+                cur.fetchall()
+                cur.close()
+                
+                
+        if(index_recipe == 0):
+            try:
+                # Execute the query
+                cur.execute(query2, (player_id,))
+
+                # Fetch all records
+                results = cur.fetchall()
+
+                if results:
+                    # Return if active recipe
+                    if(results[recipes][0] == true):
+                        index_recipe = 4
+                else:
+                    print(f"No player recipes 4 found for player ID {player_id}")
+            except Exception as e:
+                print(f"Error fetching player recipes 4 for player ID {player_id}: {e}")
+            finally:
+                cur.fetchall()
+                cur.close()
+                
+        # using index_recipe and use recipe to use items
+        #recipe_json 
+        
+        
+        
+        
+            
+        
+
+
+ 
+        
+    
     def init_player_recipes_start(self, player_id):
         '''
         creates recipes (default) for player in all tables.
         player_recipe1, player_recipe2, ...
         
+        
+        not working!!
         '''
          
         cur = db.cursor()
@@ -1414,7 +2171,51 @@ class UserService:
         
         
         
+    def get_player_recipes_all(self, player_id):
+        '''
+        Return all player recipes.
         
+        no current uses?
+        
+        for loop ?
+        '''
+        recipe_table = ''
+        
+        query = f'''
+            SELECT * FROM {recipe_table} 
+            WHERE player_id = %s;
+        '''
+    
+    def get_player_recipe(self, recipe_table, player_id):
+        '''
+        Return player recipe using recipe table
+        
+        '''
+        query = f'''
+            SELECT * FROM {recipe_table} 
+            WHERE player_id = %s;
+        '''
+        
+        cur = db.cursor()
+        
+        try:
+            # Execute the query
+            cur.execute(query, (player_id,))
+
+            # Fetch all records
+            results = cur.fetchone()
+
+            if results:
+                return results
+            else:
+                printf(f"No player recipe {recipe_table} found for player ID {player_id}")
+                return None
+
+        except Exception as e:
+            printf(f"Error fetching player recipe {recipe_table}  for player ID {player_id}: {e}")
+
+        finally:
+            cur.close()
         
         
     def get_player_recipe1(self, player_id):
@@ -1528,6 +2329,10 @@ class UserService:
     def post_player_recipe_update(self, recipe_table, recipe_name, recipe_active, player_id, quality, flavour_string, flavour_effects, pricing, cups, ingredients):
         '''
         Updates player recipe using player id and other parameters
+        
+        
+        works ??
+        
         '''
         cur = db.cursor()
         
@@ -1671,7 +2476,42 @@ class UserService:
     def post_player_recipe_default(self, recipe_table, player_id):
         '''
         Updates player recipe using player id and other parameters
+        
+        generally works
+        
         '''
+        
+        
+        s_ingredients_json = '''
+        "ingredients": {
+
+            "Liquids": {
+                "Water": {"amount": 169.0}
+            },
+
+            "Cooling": {
+                "Ice": {"amount": 0.0}
+            },
+
+
+            "Sugars": {
+                "Sugar": {"amount": 0.0}
+            },
+            "Salts": {
+                "Salt": {"amount": 0.0}
+            },
+
+            "Bases": {
+                "Lemons": {"amount": 3}
+            },
+
+            "Others": {
+                "Tea": {"amount": 0.0}
+            }
+        }
+        '''
+        
+        
         recipe_name = 'Default Recipe'
         recipe_active = False
         quality= 'Medium'
@@ -1703,6 +2543,9 @@ class UserService:
         ingredients_json = json.dumps(ingredients)
         flavour_effects_json = json.dumps(flavour_effects)
         
+       
+        
+        
         cur = db.cursor()
         
         
@@ -1713,7 +2556,6 @@ class UserService:
         '''
 
         
-
         try:
             # Execute the query
             cur.execute(query, (recipe_name, recipe_active, quality, flavour_string, flavour_effects_json, pricing, cups, ingredients_json, player_id))
@@ -1755,6 +2597,9 @@ class UserService:
     # sales
     # post_player_sales
     
+    # add to sale day
+    # finish sale day
+    
     ################
     #
     # farm
@@ -1790,11 +2635,92 @@ class UserService:
     
        
     
+    ################
+    #
+    # crafting
+    #
+    #################
+    
+    # def player_offer_exchange
+    
+    # def player_craft_current_recipe
+    
+    # def player_craft_default_recipe
+       
+    
+    # def player_refine_item
+    
+    # def player_enchant_item
+    
+    # def player_alchemy_item
+    
+    # def player_bless_item
+    
+    # def player_bones_to_bananas
+    # def player_bones_to_peaches
+    
+    # def player_freshen_item
+    
+    # def player_freeze_item
+    # def player_heat_item
+    
+    # def player_combine_item
+    
+    
+    
+    
+    #########
+    #
+    # trading ..
+    #
+    #########
+    
+    
+    # def player_create_trade_offer
+    # def player_close_trade_offer
+    
+    # def player_get_trade_offers
+    # def player_get_sent_offers
+    # def player_close_sent_offers
+    
+    # def player_get_trade_offer
+    # def player_accept_trade_offer
+    # def player_decline_trade_offer
+    
+       
     ####
+    #
+    # player chat 
+    #
+    #####
+    
+    
+    
+    ####
+    #
+    # player social 
+    #
+    #####
        
        
-       
-       
-       
-       
+    ####
+    #
+    #   player leaderboards
+    #
+    ##
+    # get top 10 player most balance
+    # get top 10 player most money_units
+    # get top 10 players most networth
+    
+    # get top 10 players most xp total
+    # get top 10 players most total lvl
+    # get top 10 players most xp per lvl
+    
+    
+    
+    
+    
+    
+    
+    
        

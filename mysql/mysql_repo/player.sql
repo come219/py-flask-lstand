@@ -4,6 +4,8 @@ CREATE TABLE player (
   player_days DOUBLE,
   player_lives INT,
   player_lives_status VARCHAR(255),
+-- player_mana INT,
+-- player_mana_regen DOUBLE,
   player_streak INT,
   player_streak_timer TIMESTAMP,
   player_networth BIGINT,

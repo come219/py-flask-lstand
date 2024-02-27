@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+      <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L-Stand Game Server</title>
+    
+    <!-- Include the favicon -->
+    <link rel="icon" href="static/images/lstand_logo_v0.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="static/images/lstand_logo_v0_alt.ico" type="image/x-icon">
+
+    <style>
+	
+	/*static/images/lstand_logo_v0_alt.png*/
+	
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #333;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+    background-color: #1B5E20; /* Darker Green */
+    padding: 20px;
+    color: black;
+    font-size: 24px;
+    display: flex; /* Use flexbox */
+    align-items: center; /* Center vertically */
+    justify-content: space-between; /* Space elements evenly */
+}
+
+
+
+		.logo {
+			cursor: pointer;
+			width: 80px; /* Adjust the width as needed */
+			height: auto; /* Maintain aspect ratio */
+		}
+
+		.header-content {
+			display: flex; /* Use flexbox */
+			align-items: center; /* Center vertically */
+		}
+
+		#refresh-counter,
+		select {
+			margin-left: 20px; /* Add margin for spacing */
+		}
+
+		
+
+		
+		footer {
+			display: flex;
+			align-items: center;    
+			justify-content: center; /* Center content horizontally */
+			background-color: #333; /* Background color for the footer */
+			color: #fff; /* Text color for the footer */
+			padding: 20px;
+			text-align: center;
+			font-size: 11px;
+			flex-wrap: wrap; /* Allow content to wrap if it overflows */
+		}
+
+		footer p {
+			margin: 0; /* Remove default paragraph margin */
+		}
+
+		/* Optionally, add some additional styling for links in the footer */
+		footer a {
+			color: #fff;
+			text-decoration: none;
+		}
+
+		footer a:hover {
+			text-decoration: underline;
+		}
+
+		footer img {
+			max-width: 50px; /* Adjust the maximum width as needed */
+			margin-right: 10px; /* Add some spacing between the image and text */
+		}
+
+        section {
+            margin: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Add a class for the logo */
+        .logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            cursor: pointer;
+        }
+		
+		
+		.server-info {
+			max-width: 600px;
+			margin: 20px auto;
+			padding: 20px;
+			background-color: #000; /* Change background color to black */
+			border: 2px solid #ffd700; /* Add a golden border */
+			border-radius: 8px;
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+			overflow: auto; /* Make the content scrollable */
+			white-space: pre-wrap; /* Preserve white spaces and wrap lines */
+		}
+
+
+
+		.info-item {
+		  margin: 10px 0;
+		  font-size: 16px;
+		  line-height: 1.6;
+		  color: #fff;
+		}
+		
+		.github-buttons {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		.github-buttons button {
+			background-color: #333;
+			color: cyan; /* Add text color */
+			text-decoration: none; /* Remove underline by default */
+			transition: color 0.3s ease; /* Add smooth transition for color changes */
+		}
+
+		.github-buttons button:hover {
+			background-color: #555;
+			color: #00f; /* Change to the desired color on hover */
+			text-decoration: underline; /* Add underline on hover */
+		}
+		
+		/* Style for the container */
+		 .table-container {
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 20px;
+            background-color: gray;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Style for the table content */
+        .table-content {
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+		
+		
+		/* Add this style for the error page button */
+.error-page-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: #8b008b; /* Dark Pink */
+    color: white;
+    border: 2px solid #808080; /* Gray Border */
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.error-page-button:hover {
+    background-color: #ff1493; /* Lighter Pink on hover */
+    border-color: #fff; /* White Border on hover */
+}
+
+.offline-page-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: #333333; 
+    color: white;
+    border: 2px solid orange; 
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.game-page-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: blue; 
+    color: white;
+    border: 2px solid teal; 
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.game-page-button:hover {
+    background-color: cyan;
+    border-color: white;
+}
+
+.reset-button {
+	white-space: pre-line;
+    padding: 10px 20px;
+    font-size: 18px;
+    background-color: #8b0000;
+    color: white;
+    border: 2px solid #8b008b;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.reset-button:hover {
+    background-color: black; /* Lighter Pink on hover */
+    border-color: red; /* White Border on hover */
+}
+
+
+    </style>
+</head>
+<body>
+   
+   <header>
+   <div>
+    <img src="/static/images/lstand_logo_v0_alt.png" alt="Logo" class="logo" onclick="refreshPage()">
+    </div>
+	<span>- Lemonade Stand Game Server -</span>
+	<div class="header-content">
+        
+        <div id="refresh-counter">
+            Refresh counter
+        </div>
+        <div>
+            <select onchange="dropdown()">
+                <option value="running">running</option>
+                <option value="testing">testing</option>
+                <option value="fixing">fixing</option>
+            </select>
+        </div>
+    </div>
+</header>
+
+    
+    <section>
+        <p>
+            Start your own lemonade stand, set your prices, manage your inventory,
+            and see how much profit you can make. Are you ready for the challenge?
+        </p>
+		
+		<p>
+        Version: 0.004 ?  Server ip: 192.168.1.38:8888 API: 1
+		db name: lstand_db_2 Server running: (value) Server location: (value) Game location: (value)
+		Num players: (value)
+		</p>
+		
+		
+		  <div class="server-info" id="server-output">
+		<p>
+            SERVER OUTPUT FROM TEXT FILE:
+        </p>
+		
+		 <pre id="log-content"></pre>
+		
+		 </div>
+        
+       
+		
+		
+		<div>
+		 <button onclick="startGame()">Start Playing</button>
+		
+		
+		<button onclick="redirectGameWebsite()" class="game-page-button">Game Website</button>
+		
+		<button onclick="test()">Docs</button>
+		
+		
+		</div>
+		
+		<div>
+		<button onclick="redirectErrorPage()" class="error-page-button">Error Page</button>
+		
+		<button onclick="redirectOfflinePage()"class="offline-page-button">Offline Page</button>
+		
+		<button onclick=""class="reset-button">&#9760; Reset server</button>
+		
+		
+		
+		
+		</div>
+		
+		
+		<div class="table-container">
+        MySQL Tables:
+		
+        <p class="table-content">
+        item  	|  	levels 	 |  	player         | server_roles  | server_info   |
+        </p>
+        <p class="table-content">
+		player_role   		|	player_security 	| 	player_update 	|	player_items  	| player_levels  | 
+		player_inventory*	|	player_avatar*		|	player_items_int* (?)	|
+        player_recipe1		|	player_recipe2		|	player_recipe3	|	player_recipe4	| 
+        </p>
+    </div>
+	
+	<!-- improve visuals .. -->
+	<div class="table-container">
+        Game Server Paths:
+		
+        <p class="table-content">
+        web: /, /home, /offline /not_found, /docs?
+		
+		server: /api/server/time, /api/server/timezone, /api/server/location, /api/server/connection, 
+		
+		recipes: /api/players/recipes/1, /api/players/recipes/2, /api/players/recipes/3, /api/players/recipes/4, /api/players/recipes/rename,
+		
+		inventory:
+		
+		items:
+		
+		player:
+		
+        </p>
+		
+		
+		Game Website Paths:
+		
+        <p class="table-content">
+        web: /, /home, 
+		
+		admin: /flask_log.log,
+
+
+		Studio website: /, /home, /homepage, /landing
+			Studio server: /admin, 
+        </p>
+       
+    </div>
+		
+		 <!-- GitHub buttons in a separate row -->
+        <div class="github-buttons">
+			<button onclick="openGitHub('https://github.com/orgs/neo-lemonade-stand/dashboard')">GitHub - org.</button>
+			<button onclick="openGitHub('https://github.com/orgs/lemon-stand/dashboard')">GitHub - diss</button>
+			<button onclick="openGitHub('https://github.com/come219/flutter_lstand')">GitHub - client</button>
+			<button onclick="openGitHub('https://github.com/come219/py-flask-lstand')">GitHub - backend</button>
+			<button onclick="openGitHub('https://github.com/website-repo')">GitHub - website</button>
+		</div>
+		
+		
+	
+		
+		
+
+    </section>
+	
+	<footer>
+	<div>
+		<img src="/static/images/219studios_logo_v5.png" alt="219 Studios logo">
+	</div>
+	<div>
+		<p>&copy;This website and its contents are copyright &copy; 2023 - 2024 219 Studios, Address, Postcode, Country.</p>
+		<p>All rights reserved.</p>
+		<p>Use of this website is subject to our Terms & Conditions and Privacy Policy</p>
+	</div>
+	
+	</footer>
+	
+    <script>
+	
+		function redirectGameWebsite() {
+             window.open("192.168.1.39:9999", '_blank');
+        }
+		
+		function redirectStudioWebsite() {
+            window.location.href = '/not_found';
+        }
+	
+	
+		function redirectErrorPage() {
+            window.location.href = '/not_found';
+        }
+		
+		function redirectOfflinePage() {
+            window.location.href = '/offline';
+        }
+	
+		function openGitHub(url) {
+            window.open(url, '_blank');
+        }
+	
+		function dropdown() {
+		  var selectedValue = document.querySelector('select').value;
+		  // Handle the selected option based on its value
+		  console.log("Selected value:", selectedValue);
+		  // Add your custom logic here
+		  // assign to text
+		}
+	
+		function test() {
+            alert('test.');
+        }
+		
+        function startGame() {
+            // Add JavaScript logic to start the game
+            alert('Game is starting!');
+        }
+
+        function refreshPage() {
+            // Reload the current page
+            location.reload();
+        }
+		
+		// Counter variable
+        var refreshCount = 0;
+
+        // Function to update and display the counter
+        function updateCounter() {
+            refreshCount++;
+            document.getElementById('refresh-counter').innerHTML = 'Refresh Count: ' + refreshCount;
+        }
+		
+		function updateServerOutput() {
+			var xhttp = new XMLHttpRequest();
+			xhttp.onreadystatechange = function () {
+				if (this.readyState == 4 && this.status == 200) {
+					// Update the content of the pre element with the content of the text file
+					document.getElementById('log-content').innerText = this.responseText;
+				}
+			};
+			xhttp.open("GET", "/flask_log.log", true);
+			xhttp.send();
+		}
+
+
+		
+		// Call the updateServerOutput function when the page loads
+		window.onload = function () {
+			updateServerOutput();
+		};
+		
+		
+		 // Automatically refresh the page every minute
+        setTimeout(function () {
+            location.reload();
+			updateCounter();
+        }, 60000); // 60000 milliseconds = 1 minute
+		
+		updateCounter();
+		
+    </script>
+	
+</body>
+</html>

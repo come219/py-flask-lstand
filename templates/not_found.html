@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Not Connected / Not Found</title>
+	 <!-- Include the favicon -->
+    <link rel="icon" href="static/images/lstand_logo_v0_alt.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="static/images/lstand_logo_v0_alt.ico" type="image/x-icon">
+
+    <style>
+	
+		header {
+            background-color: #001f3f;
+            padding: 20px;
+            color: blue;
+            font-size: 24px;
+			position: fixed;
+			width: 100%;
+			top: 0;
+			z-index: 1000;
+			align-items: center;
+            justify-content: space-between;
+        }
+		
+		.logo {
+			position: absolute;
+			top: 5px;
+			left: 10px;
+			cursor: pointer;
+			width: 80px; /* Adjust the width as needed */
+			height: auto; /* Maintain aspect ratio */
+		}
+
+	
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: black;
+            color: #333;
+            margin: 0;
+        }
+
+        h1 {
+            color: #ff2222; /* Red color for emphasis */
+			margin-top:100px;
+        }
+		.error-message {
+			color: purple;
+			margin-top:10px;
+		}
+		
+		
+    </style>
+</head>
+<body>
+	<header>
+        <img src="/static/images/lstand_logo_v0.png" alt="Logo" class="logo" onclick="redirectIndex()">
+        <span>- error page -</span>
+    </header>
+
+    <h1>Not Connected</h1>
+    <p class="error-message">The server or connection is currently unavailable. Please try again later.</p>
+	
+	<script>
+		
+		function redirectIndex() {
+            // Redirect to the index.html page
+            window.location.href = '/';
+        }
+	
+		function openURL(url) {
+            window.open(url, '_blank');
+        }
+	
+		function test() {
+            alert('test.');
+        }
+
+        function refreshPage() {
+            // Reload the current page
+            location.reload();
+        }
+		
+    </script>
+</body>
+</html>

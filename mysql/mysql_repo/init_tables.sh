@@ -91,6 +91,9 @@ execute_sql_file "player_shops.sql"
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_levels.sql 
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_role.sql 
 
+
+#\. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_avatar.sql 
+
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_security.sql 
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_update.sql 
 
@@ -129,5 +132,7 @@ execute_sql_file "player_shops.sql"
 #       init_player_inventory_start(player_id)
 #		init_player_recipes_start(player_id)
 #		weather init
+#		init_avatar
+#		
 #
 ###################################

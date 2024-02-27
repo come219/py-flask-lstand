@@ -22,3 +22,5 @@ CREATE TABLE player_sales (
 	
 	
 	-- status active bool?
+	-- recipe id data?
+	-- damage?

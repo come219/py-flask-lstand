@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_caching import Cache
 from marshmallow import Schema, fields, ValidationError
 from marshmallow.validate import Range
@@ -10,14 +10,24 @@ from server_service import ServerService
 
 from flask_cors import CORS
 
+import logging
+from logging.handlers import RotatingFileHandler
 
 
+# flask
 app = Flask(__name__)
 CORS(app)
 app.config['CACHE_TYPE'] = 'simple'  # Use simple caching that uses a hashmap
 cache = Cache()
 cache.init_app(app)
 
+
+# logging
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler = RotatingFileHandler('flask_log.log', maxBytes=1024*1024 * 10, backupCount=10)
+file_handler.setFormatter(formatter)
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
 
 
 #mysql = MySQL(app)
@@ -134,6 +144,37 @@ def get_server_connection():
 #####
 
 
+# player avatar
+@app.route('/api/players/avatar', methods=['POST'])
+def post_player_avatar():
+    """
+    # post_player_avatar by id
+    {
+       example json body using player_id
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        player_id = data.get('player_id')
+
+        results = user_service.post_player_avatar_by_id(player_id)
+
+        if results is not None:
+            # Return the results as a JSON response
+            return jsonify({"success": True, "message": "Player avatar object retrieved successfully", "player_id": player_id, "avatar_obj": results}), 200
+        else:
+            return jsonify({"success": False, "message": "No player avatar object found for player ID", "player_id": player_id}), 404
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+
+
+
 
 # recipes
 
@@ -228,77 +269,83 @@ def get_player_recipe4():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+
+@app.route('/api/players/recipes/rename', methods=['POST'])
+def post_player_recipe_rename():
+    '''
+    # post recipe rename
+    Allows player to rename recipe without altering else
+    
+    Potentially removing rename in recipe_update function
+    
+    {
+    "recipe_table": "player_recipe1",
+    "recipe_name": "Default Recipe",
+    "player_id": 25
+    }
+    '''
+
+@app.route('/api/players/recipes/activate', methods=['POST'])
+def post_player_recipe_activate():
+    '''
+    Allows player to active recipe without altering else in recipe
+    Also triggers unactive for other recipes ..
+    
+    Potentially removing active in recipe_update function??
+    
+    {
+    "recipe_table": "player_recipe1",
+    "recipe_active": true,
+    "player_id": 25
+    }
+    '''
+
 @app.route('/api/players/recipes/update', methods=['POST'])
 def post_player_recipe_update():
     """
     # post_player_recipe_update
     
+    Updates  a singular targetted table recipe.
+   
     
     
-    
+    body example:
     {
-    "recipe_table": "player_recipe1",
-    "recipe_name": "Default Recipe",
-    "recipe_active": true,
-    "player_id": 25,
-    "quality": "Medium",
-    "flavour_string": "",
-    "flavour_effects": ["Cool", "Dry", "Balanced", "Mild"],
-    "pricing": 5.99,
-    "cups": "Cups",
-    "ingredients": {
+        "recipe_table": "player_recipe1",
+        "recipe_name": "Default Recipe",
+        "recipe_active": true,
+        "player_id": 25,
+        "quality": "Medium",
+        "flavour_string": "",
+        "flavour_effects": ["Cool", "Dry", "Balanced", "Mild"],
+        "pricing": 5.99,
+        "cups": "Cups",
+        "ingredients": {
 
-        "Liquids": {
-            "water": {"amount": 169.0}
-        },
+            "Liquids": {
+                "water": {"amount": 169.0}
+            },
 
-        "Cooling": {
-            "ice": {"amount": 0.0}
-        },
+            "Cooling": {
+                "ice": {"amount": 0.0}
+            },
 
 
-        "Sugars": {
-            "sugar": {"amount": 0.0}
-        },
-        "Salts": {
-            "salts": {"amount": 0.0}
-        },
+            "Sugars": {
+                "sugar": {"amount": 0.0}
+            },
+            "Salts": {
+                "salts": {"amount": 0.0}
+            },
 
-        "Base": {
-            "lemons": {"amount": 3}
-        },
+            "Base": {
+                "lemons": {"amount": 3}
+            },
 
-        "Others": {
-            "tea": {"amount": 0.0}
+            "Others": {
+                "tea": {"amount": 0.0}
+            }
         }
-    }
-    }
-    
-    ###
-    
-    {
-    "recipe_table": "player_recipe1",
-    "recipe_name": "Default Recipe",
-    "recipe_active": false,
-    "player_id": 25,
-    "quality": "Medium",
-    "flavour_string": "",
-    "flavour_effects": ["Cool", "Dry", "Balanced", "Mild"],
-    "pricing": 5.99,
-    "cups": "Small",
-    "ingredients": {
-        "water": {"amount": 169.0},
-        "ice": {"amount": 0.0},
-        "sugar": {"amount": 0.0},
-        "salts": {"amount": 0.0},
-        "base": {
-            "lemon": {"amount": 3},
-            "lime": {"amount": 1}
-        },
-        "others": {
-            "tea": {"amount": 0.0}
-        }
-    }
     }
 
     """
@@ -321,19 +368,130 @@ def post_player_recipe_update():
 
         user_service.post_player_recipe_update(recipe_table, recipe_name, recipe_active, player_id, quality, flavour_string, flavour_effects, pricing, cups, ingredients)
         
-        return jsonify({"success": True, "message": "Player recipe updated successfully", "player_id": player_id}), 201
+        return jsonify({"success": True, "message": "Player {recipe_table} recipe updated successfully", "player_id": player_id}), 201
 
     except Exception as e:
         # Handle any exceptions and return an error response
         return jsonify({"success": False, "error": str(e)}), 500
         
+
+
+@app.route('/api/players/recipes/use', methods=['POST'])
+def post_player_recipes_use():
+    """
+    # post_player_recipe_use
+    API function to use chosen player recipe.
+    {
+    "player_id": 25,
+    "recipe_table": "player_recipe1",
+    }
+    """
+    try:
+        data = request.json
+        player_id = data.get('player_id')
+        recipe_table = data.get('recipe_table')
         
+        user_service.post_player_recipes_use(recipe_table, player_id)
+        
+        return jsonify({"success": True, "message": "Player recipe used successfully", "player_id": player_id}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+        
+
+@app.route('/api/players/recipes/pitchers/use', methods=['POST'])
+def post_player_recipes_pitchers_use():
+    """
+    # post_player_recipe_picthers_use
+    online edition - simple
+    - requires current weather - simple string
+    - requires current location  - number
+    - interprets weather for random vals
+    - provides the cups sold
+    - provides the tips sold
+    
+    API function to use chosen player recipe.
+    {
+    "player_id": 25,
+    "recipe_table": "player_recipe1",
+    }
+    """
+    
+    
+    def interpretValuesWeather(_weather):
+         switch = {
+            "clear skies": 10,
+            "sunny": 9,
+            "windy": 8,
+            "rainy": 2,
+            "snowy": 1,
+            # Add more cases for other weather conditions as needed
+        }
+
+    return switch.get(_weather.lower(), "Sunny")
+
+    def interpretValuesLocation(_location):
+         switch = {
+            0: 5,
+            1: 7,
+            2: 9,
+            3: 2,
+            4: 1,
+            # Add more cases for other weather conditions as needed
+        }
+
+    return switch.get(_location, 0)
+        
+    weather_condition = "Clear Skies"
+    location = 0
+
+    
+    try:
+        data = request.json
+        player_id = data.get('player_id')
+        recipe_table = data.get('recipe_table')
+        weather_json = data.get('weather_json')
+        location_val = data.get('location_val')
+        
+        weather_condition = weather_json
+        location = location_val
+        weather_value = interpretValuesWeather(weather_condition)
+        location_value = interpretValuesLocation(location)
+        
+        npc_population = weather_value * location_value
+        
+        # random generate number against npc_population to generate npc demand
+        
+        
+        # not use recipe use function
+        # new function that does a for loop for the 
+        # amount of pitchers and cups in pitchers (7)
+        # random generate cups sold - to return
+        # random generate tips given - to return
+        # npc multiplier (npc_population) - to return
+        # npc demand (npc_demand) random val generated - to return
+        #
+        user_service.post_player_recipes_use(recipe_table, player_id)
+        
+        return jsonify({"success": True, "message": "Player recipe used successfully", "player_id": player_id}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+   
+
+
+
 
 @app.route('/api/players/recipes/default', methods=['POST'])
 def post_player_recipe_default():
     """
     # post_player_recipe_default
+    API function to default chosen player recipe.
     {
+    "player_id": 25,
+    "recipe_table": "player_recipe1"
     }
     """
     try:
@@ -356,6 +514,8 @@ def post_player_recipe_default():
 def post_player_recipe_default_init():
     """
     # post_player_recipe_default
+    
+    ?? why is this an api call.
     {
     }
     """
@@ -486,6 +646,77 @@ def get_player_mtx_coins():
         # Handle any exceptions and return an error response
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+##########################
+#
+# membership service
+#
+##########################
+
+
+# get_player_membership function
+#   -> to return all membership values using id
+
+@app.route('/api/players/membership/bool', methods=['POST'])
+def get_player_membership_bool():
+    """
+    get_player_membership post function
+    
+    intends to retrieve membership boolean value
+    
+    body:
+    {
+        "id": "25"
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        id = data.get('id')         # id -> player_id ??
+
+        membership = user_service.get_player_membership_bool(id)
+
+        return jsonify({"success": True, "message": "Player membership retrieved successfully", "player_id": id, "membership": membership}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# get_player_membership_status
+# -> string related membership data
+
+
+@app.route('/api/players/membership/timer', methods=['POST'])
+def get_player_membership_timer():
+    """
+    get_player_membership_timer
+    
+    intends to retrieve membership timer value
+    
+    body:
+    {
+        "id": "25"
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        id = data.get('id')         # id -> player_id ??
+
+        membership = user_service.get_player_membership_timer(id)
+
+        return jsonify({"success": True, "message": "Player membership timer retrieved successfully", "player_id": id, "membership": membership}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+##########################
+# streak service
+##########################
 
 @app.route('/api/players/streak', methods=['POST'])
 def get_player_streak():
@@ -796,8 +1027,59 @@ def pong():
     return jsonify(status='ping'), 200
 
 
+@app.route('/')
+def index():
+    '''
+    index.html to show the main webpage, can be used to verify connection.
+    
+    '''
+    #if not is_server_online:
+    #    return redirect(url_for('offline'))
+    #return render_template('index.html')
+    
+    if not is_server_online:
+        abort(404)
+    return render_template('index.html')
+    
+    
+is_server_online = True  # Change to False to simulate offline state
+            
+            
+            
+@app.route('/offline')
+def offline():
+    '''
+    offline.html to show a page when the server is offline.
+    '''
+    return render_template('offline.html')
+
+
+@app.errorhandler(404)
+def not_found(error):
+    '''
+    not_found.html to show a page when the server is offline.
+    '''
+    return render_template('not_found.html'), 404
+
+
+
+@app.route('/flask_log.log')
+def serve_log_file():
+    log_file_path = '/flask_log.log'  # Adjust the path accordingly
+    return send_from_directory('.', 'flask_log.log', as_attachment=True)
+
+
+
+
+app.add_url_rule('/home','home', index)
+
+
+
 if __name__ == '__main__':
-    app.run(host=host, port=port)
+    app.logger.info("Server start")
+    print("\n\nserver starting ...")
+    print("\n\n")
+    app.run(host=host, port=port, debug=True)
 
 # if __name__ == '__main__':
     # with app.app_context():

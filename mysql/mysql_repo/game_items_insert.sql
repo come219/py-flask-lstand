@@ -165,7 +165,7 @@ INSERT INTO item (
   ('Aspartame', 'Aspartame', 0.50, 'chemicals-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Saccharin', 'Saccharin', 0.50, 'chemicals-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Fructose Corn Syrup', 'Fructose Corn Syrup', 0.50, 'syrup-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('Sugar Water Syrup', 'Sugar Water Syrup', 0.50, 'syrup-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Sugar Water Syrup', 'Sugar Water Syrup', 0.50, 'syrup-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- TO BE REMOVED, DUPLICATE, N Item
 -- sugar water flavour
   ('White Sugar', 'White Sugar', 0.50, 'sugar-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Raw Sugar', 'Raw Sugar', 0.50, 'sugar-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -225,7 +225,7 @@ INSERT INTO item (
   ('Dark Roast Coffee', 'Coffee', 0.50, 'coffee-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Instant Coffee', 'Coffee', 0.50, 'coffee-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Coffee Mix', 'Coffee', 0.50, 'coffee-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('Decafe Coffee', 'Coffee', 0.50, 'coffee-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('Decafe Coffee', 'Coffee', 0.50, 'coffee-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),    -- Decaff
   ('Ginger', 'Ginger', 0.50, 'specials-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Fresh Ginger', 'Fresh Ginger', 0.50, 'specials-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Nice Ginger', 'Nice Ginger', 0.50, 'specials-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -233,8 +233,61 @@ INSERT INTO item (
   ('Vanilla Flavouring', 'Vanilla Extract', 0.50, 'vanilla-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Vanilla Beans', 'Vanilla Beans', 0.50, 'vanilla-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('Roasted Oak', 'Roasted Oak', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('Cinnamon Powder', 'Roasted Oak', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('Cinnamon Extract', 'Roasted Oak', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('Cinnamon Stick', 'Roasted Oak', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+  ('Cinnamon Powder', 'Cinnamon Powder', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('Cinnamon Extract', 'Cinnamon Extract', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('Cinnamon Stick', 'Cinnamon Stick', 0.50, 'woods-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Cups others ..
+
+-- ('Coffee Cups', 'Cups', 0.50, 'Cups-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Triangle Cups', 'Cups', 0.50, 'Cups-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Styrofoam Cups', 'Flask', 0.50, 'Cups-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Paper Cups', 'Paper Cups', 0.50, 'Cups-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Plastic Cups', 'Plastic Cups', 0.50, 'Plastic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Plastic Bag', 'Plastic Bag', 0.50, 'Plastic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Plastic Bottle', 'Plastic Bottle', 0.50, 'Plastic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Plastic Mug', 'Plastic Mug', 0.50, 'Plastic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Plastic Flask', 'Plastic Flask', 0.50, 'Plastic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Glass Cups', 'Cups', 0.50, 'Glass-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Glass Bottle', 'Bottle', 0.50, 'Glass-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Glass Mug', 'Mug', 0.50, 'Glass-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Glass Flask', 'Flask', 0.50, 'Glass-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Aluminum Can', 'Can', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Metal Cups', 'Bottle', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Metal Bottle', 'Bottle', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Metal Mug', 'Metal Mug', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Metal Flask', 'Flask', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Metal Goblet', 'Flask', 0.50, 'Metal-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Wooden Cups', 'Wooden Cups', 0.50, 'Wooden-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Wooden Mug', 'Mug', 0.50, 'Wooden-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Gourd Bottle', 'Bottle', 0.50, 'Wooden-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Ceramic Cups', 'Cups', 0.50, 'Ceramic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Ceramic Bottle', 'Bottle', 0.50, 'Ceramic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Ceramic Mug', 'Ceramic', 0.50, 'Ceramic-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Whiskey Glass', 'Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Pint Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Half-Pint Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Tall Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Short Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Shot Glass', 'Shot Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Party Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Hyper Glass', 'Glass', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Insulated Cup', 'Insulated Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Recycled Cup', 'Recycled Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Ice Cups', 'Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Machine Cups', 'Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- ('Alien Cups', 'Cups', 0.50, 'Special-s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 
+
+
+
+-- Specials items -> int not double
+
+-- lemon seeds .. 
+-- Lime seeds .. 
+
+
+
+
+-- Perks, Equipment items -> int not double
