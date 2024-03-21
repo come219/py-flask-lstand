@@ -20,16 +20,6 @@ import MySQLdb
 import datetime
 import json
 
-import bcrypt
-import jwt
-# from jwt.exceptions import InvalidTokenError
-# from jwt.exceptions import DecodeError
-
-
-from functools import wraps
-import uuid
-
-
 import logging
 
 '''
@@ -44,13 +34,13 @@ from firebase_handler import FirebaseHandler
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'lstand'
+
 
 
 db = MySQLdb.connect(host="localhost",    # your host, usually localhost
                      user="root",         # your username
                      passwd="1337",  # your password
-                     db="lstand_db_3")        # name of the data base
+                     db="lstand_db_2")        # name of the data base
 
 
 # Configure logging
@@ -92,324 +82,6 @@ class UserService:
         #self.connection.close()
         #db.close()
         pass
-
-    ###
-    #
-    # USER AUTH.
-    #
-    ##
-    
-    
-
-    
-    def generate_access_token(self, user_id, secret_key):
-        '''
-        user auth func
-        '''
-        # Generate an access token with a short expiration time (e.g., 15 minutes)
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
-        
-        token = jwt.encode({'user_id': user_id, 'exp': expiration}, app.config['SECRET_KEY'])
-        
-        access_token = jwt.encode({'user_id': user_id}, secret_key, algorithm='HS256')
-        # return token.decode('UTF-8')
-        return access_token
-
-    def generate_refresh_token(self, user_id):
-        '''
-        user auth func
-        '''
-        # Generate a refresh token with a longer expiration time (e.g., 7 days)
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        token = jwt.encode({'user_id': user_id, 'exp': expiration}, app.config['SECRET_KEY'])
-        # return token.decode('UTF-8')
-        return token
-
-    def verify_refresh_token(self, refresh_token):
-        '''
-        user auth func
-        Verifies the refresh token and returns the associated user ID if valid.
-        '''
-        try:
-            payload = jwt.decode(refresh_token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            user_id = payload['user_id']
-            
-            # Check if the token is expired
-            expiration_timestamp = payload.get('exp')
-            if expiration_timestamp is not None and datetime.datetime.utcfromtimestamp(expiration_timestamp) < datetime.datetime.utcnow():
-                expiration_datetime = datetime.datetime.utcfromtimestamp(expiration_timestamp)
-                if expiration_datetime < datetime.datetime.utcnow():
-                    raise jwt.ExpiredSignatureError('Token has expired')
-
-            # Check if the refresh token is valid (e.g., check if it exists in the database)
-            if self.is_valid_refresh_token(user_id, refresh_token):
-                return user_id
-            else:
-                raise jwt.exceptions.DecodeError('Invalid refresh token')
-        except jwt.ExpiredSignatureError:
-            raise jwt.ExpiredSignatureError('Token has expired')  # Token has expired
-        except jwt.exceptions.DecodeError as e:
-            # Log or handle invalid token error
-            print(f"Invalid token: {e}")
-            # raise jwt.DecodeError('Invalid refresh token')
-            return jsonify({'valid': False, 'message': 'Invalid token'}), 401
-        except Exception as e:
-            return jsonify({'valid': False, 'message': f'An error occurred: {e}'}), 500
-
-
-    def is_valid_refresh_token(self, user_id, refresh_token):
-        '''
-        user auth func
-        
-            - called by /refresh
-        
-        db table: player_token 
-        [ token_id, player_id, access_token, refresh_token, expiration_date, creation_date, last_updated ]
-        '''
-        # Check if the refresh token exists in the database and is associated with the user
-        # This function should verify the refresh token's validity
-        # Return True if the refresh token is valid, False otherwise
-        
-        try:
-            # Get a database cursor
-            cur = db.cursor()
-
-            # Define the query to check if the refresh token exists for the specified user
-            query = """
-                SELECT COUNT(*)
-                FROM player_token
-                WHERE player_id = %s AND refresh_token = %s
-            """
-
-            # Execute the query with parameters
-            cur.execute(query, (user_id, refresh_token))
-
-            # Fetch the result
-            result = cur.fetchone()
-
-            # Check if the refresh token exists for the specified user
-            if result and result[0] > 0:
-                return True
-            else:
-                return False
-        except Exception as e:
-            # Log or handle the error
-            print(f"An error occurred while checking refresh token validity: {e}")
-            return False
-        finally:
-            # Close the cursor
-            cur.close()
-        
-    
-    '''
-    store_refresh_token function
-    
-    - called by /login2
-    - user auth func
-    - db table: player_token : [ token_id, player_id, access_token, refresh_token, expiration_date, creation_date, last_updated ]
-    '''
-    def store_refresh_token(self, user_id, refresh_token):
-        '''
-        Stores the refresh token in the player_token table.
-        
-        NOTES: check if token_id needs to be unique, &  increment??
-
-        :param user_id: The ID of the player.
-        :param refresh_token: The refresh token to be stored.
-        :return: True if the refresh token was successfully stored, False otherwise.
-        '''
-        try:
-            # Generate access token
-            access_token = str(uuid.uuid4())
-
-        
-            # Get a database cursor
-            cur = db.cursor()
-
-            # Define the INSERT query
-            
-            insert_query = """
-            INSERT INTO player_token (player_id, access_token, refresh_token, expiration_date, creation_date, last_updated)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """
-
-            # Calculate expiration date (e.g., set expiration 7 days from creation)
-            expiration_date = datetime.datetime.utcnow() + datetime.timedelta(days=7)
-
-            # Get current date and time for creation and last_updated fields
-            current_datetime = datetime.datetime.utcnow()
-
-            # Execute the INSERT query with parameters
-            cur.execute(insert_query, (user_id, access_token, refresh_token, expiration_date, current_datetime, current_datetime))
-            
-            # Commit the transaction
-            db.commit()
-
-            # Close the cursor
-            cur.close()
-
-            return True
-        except Exception as e:
-            # If an error occurs, rollback the transaction
-            db.rollback()
-            print(f"An error occurred while storing refresh token: {e}")
-            return False
-    
-
-    #####
-    #
-    # login functions
-    #
-    ####
-
-    def attempt_login(self, username, password):
-        '''
-        player attempt auth login
-        '''
-        
-        try:
-            #cur.execute(insert_sql, (player_id,))
-            #player_id = cur.lastrowid   # Obtain the player_id for the specified username
-            #db.commit()
-            print(f"attempting to login player for player ID {player_id}")
-            
-            # if not empty - return true for id/ auth token, refresh token, -> jwt token
-        except Exception as e:
-            # Rollback in case there is any error
-            raise Exception(f"An error occurred while attempting to login for player ID {player_id}: {e}")
-        finally:
-            cur.close()
-            
-    
-       
-    # def filter_by_username()
-    def filter_by_username(self, username):
-        """
-        Filter by username for login.
-        Returns True if the username exists, False otherwise.
-        """
-        cur = db.cursor()
-
-        query_sql = """
-            SELECT *
-            FROM player_security
-            WHERE username = %s;
-        """
-        query_sql_v2 = """
-            SELECT COUNT(*) AS user_count
-            FROM player_security
-            WHERE username = %s;
-        """
-
-        try:
-            cur.execute(query_sql, (username,))
-            result = cur.fetchone()
-            # user_count = result['user_count']
-            user_count = result[0]
-            return user_count > 0
-        except Exception as e:
-            # Handle any exceptions (e.g., database connection issues)
-            print(f"An error occurred while filtering by username {username}: {e}")
-            return False
-        finally:
-            cur.close()
-
-       
-    # def filter_by_email()
-    
-    #get_hashed_password(auth['username'])
-    def get_hashed_password(self, username):
-        """
-      
-        """
-        cur = db.cursor()
-
-        query_sql = """
-            SELECT password
-            FROM player_security
-            WHERE username = %s;
-        """
-
-        try:
-            cur.execute(query_sql, (username,))
-            result = cur.fetchone()
-            
-            # if result:
-            #    return result[0]  # Return the hashed password if the username exists
-                
-            if result:
-                return result[0].encode('utf-8')
-
-            else:
-                return None  # Return None if the username doesn't exist
-        except Exception as e:
-            # Handle any exceptions (e.g., database connection issues)
-            print(f"An error occurred while filtering by username {username}: {e}")
-            return None
-        finally:
-            cur.close()
-    
-    # def checkpasswords()
-    # def validpassword()
-    def validate_password(self, user_input, hashed_password):
-        """
-        Validates the user's input password against the hashed password.
-        Returns True if the input password matches the hashed password, False otherwise.
-        """
-        try:
-            # Verify the input password against the hashed password
-            return bcrypt.checkpw(user_input.encode('utf-8'), hashed_password)
-        except Exception as e:
-            print(f"An error occurred during password validation: {e}")
-            return False
-    
-    
-    # def is_valid_password()
-    def is_valid_password(password):
-        """
-        Validates a password based on certain rules.
-        Returns True if the password is valid, False otherwise.
-        """
-        # Define your password validation rules here
-        # For example:
-        # - Minimum length
-        # - At least one uppercase letter
-        # - At least one lowercase letter
-        # - At least one digit
-        # - No spaces or special characters (customize as needed)
-
-        min_length = 8
-        has_uppercase = any(char.isupper() for char in password)
-        has_lowercase = any(char.islower() for char in password)
-        has_digit = any(char.isdigit() for char in password)
-        no_spaces_or_special_chars = password.isalnum()  # Modify this condition as needed
-
-        # Check if all conditions are met
-        if len(password) >= min_length and has_uppercase and has_lowercase and has_digit and no_spaces_or_special_chars:
-            return True
-        else:
-            return False
-
-    
-    def hash_password(password):
-        """
-        Hashes the input password.
-        Returns the hashed password.
-        """
-        salt = bcrypt.gensalt()
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-        return hashed_password
-
-
-    #####
-    #
-    # USER SERVER UPDATE
-    #
-    ######
-    
-    # def attempt_hop_worlds():
-    
-    # def attempt_logout():
 
 
     ##################
@@ -459,41 +131,12 @@ class UserService:
     # def player_avatar_check_border # check member expiry to change border
     
     # def get_player_avatar_player_id
-    
-    
-    def post_player_change_avatar(self, player_id, avatar_id):
-        """
-        Change player avatars by player_id and using avatar-id
-        """
-
-        update_sql = """
-            UPDATE player_avatar
-            SET avatar_id = %s
-            WHERE player_id = %s
-        """
-
-        try:
-        
-            cur = db.cursor()
-            cur.execute(update_sql, (avatar_id, player_id))
-            db.commit()
-
-            return {"success": True, "message": f"Avatar updated successfully for player ID {player_id}"}, 200
-        except Exception as e:
-            return {"success": False, "error": str(e)}, 500
-        finally:
-            cur.close()
-    
   
     # def get_player_avatar_player_username
   
     def post_player_avatar_by_id(self, player_id):
         """
         Retrieve player avatars by player_id.
-
-        change from fetch all () ??
-
-        
         """
 
         cur = db.cursor()
@@ -692,15 +335,12 @@ class UserService:
         cur.close()
         
         '''
-        
+        cur = db.cursor()
         
         query = 'SELECT player_streak FROM player WHERE id = %s;'
         
         
         try:
-        
-            cur = db.cursor()
-            
             # Execute the query
             cur.execute(query, (_id,))
 
@@ -711,9 +351,6 @@ class UserService:
                 # Return all results as a list
                 print(f"Fetching player_streak from Player {_id}")
                 return results[0]
-                
-            # else if - results.none
-            
             else:
                 print(f"No streak found for player ID {player_id}")
                 return None
@@ -744,7 +381,7 @@ class UserService:
         # Fetch the player's streak timer from the database
         cur = db.cursor()
         cur.execute('SELECT player_streak_timer FROM player WHERE id = %s;', (_id,))
-        # db.commit()
+        db.commit()
         result = cur.fetchone()
 
         if result is None:
@@ -815,46 +452,6 @@ class UserService:
         print(f"Increased player_days for Player {_id} to {new_days}")
         return new_days
 
-
-    def get_day_counter(self, _id):
-        '''
-        retrieves player_days by id
-        
-        notes:
-        
-        - rewrite - with db.cursor() as cur:
-        
-        '''
-    
-        query = 'SELECT player_days FROM player WHERE id = %s;'
-    
-        try:
-            cur = db.cursor()
-            cur.execute(query, (_id,))
-            # db.commit()
-            
-            results = cur.fetchone()  # Fetch the first record
-
-            if results is not None:
-                print(f"Fetching player_days from Player {_id}")
-                return results[0]  # Return the player_days
-            else:
-                print("No user result found")
-                return None
-        
-        except pymysql.Error as e:
-            # Handle MySQL database-related exceptions
-            print(f"Error fetching player_days for Player {_id}: {e}")
-            return None
-            
-        except Exception as e:
-            # Handle the exception
-            print(f"Error fetching days for player ID {player_id}: {e}")
-
-        
-        finally:
-            # Close the cursor
-            cur.close()
     
     def get_day_counter_OLD(self, _id):
         '''
@@ -882,13 +479,14 @@ class UserService:
             print("No user result found")
             return None
             
-    def get_day_counter_NEW(self, _id):
+    def get_day_counter(self, _id):
         '''
         retrieves player_days by id
         
         notes:
         
-        - rewrite - with db.cursor() as cur:
+        - needs try-catch statement
+        - cur.close
         
         '''
     
@@ -897,7 +495,7 @@ class UserService:
         try:
             with db.cursor() as cur:
                 cur.execute(query, (_id,))
-                #db.commit()
+                db.commit()
                 
                 results = cur.fetchone()  # Fetch the first record
 
@@ -916,39 +514,28 @@ class UserService:
         finally:
             # Close the cursor
             cur.close()
-    
-    
+        
         
     def get_player_lives(self, _id):
         '''
         retrieves player_lives by id
         
-        
         '''
     
-        query = 'SELECT player_lives FROM player WHERE id = %s;'  
+        query = 'SELECT player_lives FROM player WHERE id = %s;'
+        
+        cur = db.cursor()
+        cur.execute(query, (_id,))
+        db.commit()
+        
+        results = cur.fetchone()  # Fetch the first record
 
-        try:
-            cur = db.cursor()
-            cur.execute(query, (_id,))
-            # db.commit()
-            
-            results = cur.fetchone()  # Fetch the first record
-
-            if results is not None:
-                print(f"Fetching player_lives from Player {_id}")
-                return results[0]  # Return the player_lives
-            else:
-                print("No user result found")
-                return None
-            
-        except Exception as e:
-            # Handle the exception
-            print(f"Error fetching lives for player ID {player_id}: {e}")
-
-        finally:
-            # cur.fetchall()
-            cur.close()
+        if results is not None:
+            print(f"Fetching player_lives from Player {_id}")
+            return results[0]  # Return the player_lives
+        else:
+            print("No user result found")
+            return None
             
             
     # increase player lifes
@@ -1019,33 +606,70 @@ class UserService:
         old notes:
             - need to implement player_membership, among other
         '''
-        cur = db.cursor() 
+        cur = db.cursor()
         
-        
-        
-        try:
-            # Check if the username already exists
-            cur.execute("SELECT * FROM player_security WHERE username = %s", (username,))
-            if cur.fetchone():
-                print("Username already exists.")
-                return None
+       
+        query_OLD = '''
+            INSERT INTO player (
+                player_days, player_lives, player_streak, player_streak_timer,
+                player_networth, player_location, player_offers_notifications,
+                player_trade_requests, player_inbox_messages, player_private, player_hide,
+                main_level, total_level, total_xp, quest_points, quest_level
+            )
+            VALUES (
+                0, -- player_days
+                10, -- player_lives
+                0, -- player_streak
+                CURRENT_TIMESTAMP, -- player_streak_timer
+                0, -- player_networth
+                '', -- player_location
+                0, -- player_offers_notifications
+                0, -- player_trade_requests
+                0, -- player_inbox_messages
+                0, -- player_private
+                0, -- player_hide
+                0, -- main_level
+                0, -- total_level
+                0, -- total_xp
+                0, -- quest_points
+                0 -- quest_level
+                -- NULL -- new_column, assuming it allows NULL values
+            );
+        '''
 
-            # Check if the email already exists
-            cur.execute("SELECT * FROM player_security WHERE email = %s", (email,))
-            if cur.fetchone():
-                print("Email already exists.")
-                return None
-
-            # If username and email are unique, proceed with the rest of your code
-            # ...
-        except Exception as e:
-            print(f"Error: {e}")
-            return None
+        query_OLD = '''
+        INSERT INTO player (
+                player_days, player_lives, player_lives_status, player_streak, player_streak_timer,
+                player_networth, player_location, player_offers_notifications,
+                player_trade_requests, player_inbox_messages, player_private, player_hide,
+                main_level, total_level, total_xp, quest_points, quest_level,
+                player_membership, player_membership_expiry, player_membership_status
+            )
+            VALUES (
+                0, -- player_days
+                10, -- player_lives
+                '', -- player_lives_status
+                0, -- player_streak
+                CURRENT_TIMESTAMP, -- player_streak_timer
+                0, -- player_networth
+                '', -- player_location
+                0, -- player_offers_notifications
+                0, -- player_trade_requests
+                0, -- player_inbox_messages
+                0, -- player_private
+                0, -- player_hide
+                0, -- main_level
+                0, -- total_level
+                0, -- total_xp
+                0, -- quest_points
+                0, -- quest_level
+                0, -- player_membership
+                NULL, -- player_membership_expiry
+                '' -- player_membership_status
+            );
+        '''
         
         
-        # HASH PASSWORD TO STORE..
-        # Hash the password
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         
         query = '''
         INSERT INTO player (
@@ -1098,20 +722,17 @@ class UserService:
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s
                 );
             '''
-            cur.execute(security_query, (player_id, email, 0, username, hashed_password, None, None, None, first_name, last_name, dob, None, 0, 0, None))
+            cur.execute(security_query, (player_id, email, 0, username, password, None, None, None, first_name, last_name, dob, None, 0, 0, None))
             db.commit()
            
             print(f"Player {player_id} fully created successfully")
             return player_id
            
 
-        except MySQLdb.Error as e:
-                print(f"MySQL Error: {e}")
-                return None
         except Exception as e:
             # Handle the exception
             print(f"Error creating player: {e}")
-            return None
+
         finally:
             #cur.fetchall()
             # Close the cursor and database connection
@@ -1172,32 +793,20 @@ class UserService:
         
         implement try-catch statment
         '''
-        query = 'SELECT player_id FROM player_security WHERE username = %s;'
-            
-            
-        try:
-            cur = db.cursor()
-            cur.execute(query, (username,))
-            db.commit()
+        query = 'SELECT id FROM player WHERE username = %s;'
 
-            result = cur.fetchone()  # Fetch the first record
+        cur = db.cursor()
+        cur.execute(query, (username,))
+        db.commit()
 
-            if result is not None:
-                print(f"Fetching ID for username: {username}")
-                return result[0]  # Return the player ID
-            else:
-                # possible error
-                logging.info(f"No ID found for username: {username}")
-                return None
-        
-        except Exception as e:
+        result = cur.fetchone()  # Fetch the first record
+
+        if result is not None:
+            print(f"Fetching ID for username: {username}")
+            return result[0]  # Return the player ID
+        else:
             print(f"No ID found for username: {username}")
-            # print(f"An error occurred while fetching username for Player {player_id}: {e}")
             return None
-        finally:
-            cur.close()
-        
-        
 
     
     def get_player_username(self, player_id):
@@ -1215,7 +824,7 @@ class UserService:
         try:
             cur = db.cursor()
             cur.execute(query, (player_id,))
-            # db.commit() - commands out of sync error
+            db.commit()
 
             result = cur.fetchone()  # Fetch the first record
 
@@ -1756,9 +1365,6 @@ class UserService:
     def get_player_items_balance(self, player_id):
         '''
         Error fetching Balance item for player ID 25: (2014, "Commands out of sync; you can't run this command now")
-        
-        comment out fetchall
-        
         '''
         cur = db.cursor()
         query = '''
@@ -1801,10 +1407,10 @@ class UserService:
 
         finally:
             # consume
-            # try:
-            #     cur.fetchall()
-            # except pymysql.Error as e:
-            #     pass  # Ignore any errors during result consumption
+            try:
+                cur.fetchall()
+            except pymysql.Error as e:
+                pass  # Ignore any errors during result consumption
 
             # Close the cursor and database connection
             cur.close()
@@ -2135,46 +1741,7 @@ class UserService:
     
     # def post_share_recipe - share json?
     
-   
-    def post_player_recipe_rename(self, recipe_table, new_recipe_name, player_id):
-        '''
-        # def post recipe rename
-         
-        Renames a player's recipe using player ID and new recipe name.
-
-        :param recipe_table: Name of the recipe table.
-        :param new_recipe_name: New name for the recipe.
-        :param player_id: ID of the player whose recipe is being renamed.
-        '''
-
-        cur = db.cursor()
-
-        # Update query to only update the recipe name
-        query = f'''
-            UPDATE {recipe_table} 
-            SET recipe_name = %s
-            WHERE player_id = %s;
-        '''
-
-        try:
-            # Execute the query
-            cur.execute(query, (new_recipe_name, player_id))
-
-            # Commit the transaction
-            db.commit()
-
-            print(f"Player recipe renamed for player ID {player_id}")
-
-        except Exception as e:
-            # Handle the exception
-            print(f"Error renaming player recipe for player ID {player_id}: {e}")
-
-        finally:
-            # Close the cursor
-            cur.close()
-
-    
-    
+    # def post recipe rename
     # def post recipe deactivate
     # def post recipe activate
     
@@ -2517,49 +2084,13 @@ class UserService:
  
         
     
-    
     def init_player_recipes_start(self, player_id):
-        '''
-        Creates default recipes for a player in all tables: player_recipe1, player_recipe2, etc.
-        '''
-        cur = db.cursor()
-        queries = []
-
-        for i in range(1, 5):  # Assuming you want to insert into player_recipe1 to player_recipe4
-            query = '''
-                INSERT INTO player_recipe{0} (
-                recipe_name, recipe_active, player_id, quality, flavour_string, flavour_effects, pricing, cups, ingredients)
-                VALUES ('Default Recipe', FALSE, %s, 'Medium', '',
-                '["Cool", "Dry", "Balanced", "Mild" ]', 5.99, 'Cups',
-                '{{
-                    "Liquids": {{"water": {{"amount": 169.0}}}},
-                    "Cooling": {{"ice": {{"amount": 0.0}}}},
-                    "Sugars": {{"sugar": {{"amount": 0.0}}}},
-                    "Salts": {{"salt": {{"amount": 0.0}}}},
-                    "Base": {{"lemons": {{"amount": 3}}}},
-                    "Others": {{"tea": {{"amount": 0.0}}}}
-                }}');
-            '''.format(i)
-            queries.append(query)
-
-        try:
-            for query in queries:
-                cur.execute(query, (player_id,))
-        except Exception as e:
-            print(f"Error initializing player recipes for player ID {player_id}: {e}")
-        finally:
-            cur.close()
-
-    
-    def init_player_recipes_start_v0(self, player_id):
         '''
         creates recipes (default) for player in all tables.
         player_recipe1, player_recipe2, ...
         
         
-        not working!! --> did not init the player recipes start
-        
-        b/c this :: PLAYER_ID_HERE
+        not working!!
         '''
          
         cur = db.cursor()
@@ -2602,102 +2133,34 @@ class UserService:
             VALUES ( 'Default Recipe', FALSE, PLAYER_ID_HERE, 'Medium', '',
             '["Cool", "Dry", "Balanced", "Mild" ]', 5.99, 'Cups',
             '{
-                    "Liquids": {
-                        "water": {"amount": 169.0}
-                    },
+                "Liquids": {
+                    "water": {"amount": 169.0}
+                },
 
-                    "Cooling": {
-                        "ice": {"amount": 0.0}
-                    },
-
-
-                    "Sugars": {
-                        "sugar": {"amount": 0.0}
-                    },
-                    "Salts": {
-                        "salt": {"amount": 0.0}
-                    },
-
-                    "Base": {
-                        "lemons": {"amount": 3}
-                    },
-
-                    "Others": {
-                        "tea": {"amount": 0.0}
-                    }
-                }' );
-            '''
-            
-            
-        query3 = '''
-            INSERT INTO player_recipe3 ( 
-            recipe_name, recipe_active, player_id, quality, flavour_string, flavour_effects, pricing, cups, ingredients) 
-            VALUES ( 'Default Recipe', FALSE, PLAYER_ID_HERE, 'Medium', '',
-            '["Cool", "Dry", "Balanced", "Mild" ]', 5.99, 'Cups',
-            '{
-                    "Liquids": {
-                        "water": {"amount": 169.0}
-                    },
-
-                    "Cooling": {
-                        "ice": {"amount": 0.0}
-                    },
+                "Cooling": {
+                    "ice": {"amount": 0.0}
+                },
 
 
-                    "Sugars": {
-                        "sugar": {"amount": 0.0}
-                    },
-                    "Salts": {
-                        "salt": {"amount": 0.0}
-                    },
+                "Sugars": {
+                    "sugar": {"amount": 0.0}
+                },
+                "Salts": {
+                    "salt": {"amount": 0.0}
+                },
 
-                    "Base": {
-                        "lemons": {"amount": 3}
-                    },
+                "Base": {
+                    "lemons": {"amount": 3}
+                },
 
-                    "Others": {
-                        "tea": {"amount": 0.0}
-                    }
-                }' );
-            '''
-            
-        query4 = '''
-            INSERT INTO player_recipe4 ( 
-            recipe_name, recipe_active, player_id, quality, flavour_string, flavour_effects, pricing, cups, ingredients) 
-            VALUES ( 'Default Recipe', FALSE, PLAYER_ID_HERE, 'Medium', '',
-            '["Cool", "Dry", "Balanced", "Mild" ]', 5.99, 'Cups',
-            '{
-                    "Liquids": {
-                        "water": {"amount": 169.0}
-                    },
-
-                    "Cooling": {
-                        "ice": {"amount": 0.0}
-                    },
-
-
-                    "Sugars": {
-                        "sugar": {"amount": 0.0}
-                    },
-                    "Salts": {
-                        "salt": {"amount": 0.0}
-                    },
-
-                    "Base": {
-                        "lemons": {"amount": 3}
-                    },
-
-                    "Others": {
-                        "tea": {"amount": 0.0}
-                    }
-                }' );
-            '''
+                "Others": {
+                    "tea": {"amount": 0.0}
+                }
+            }' );
+        '''
         
         try:
             cur.execute(query, (player_id,))
-            cur.execute(query2, (player_id,))
-            cur.execute(query3, (player_id,))
-            cur.execute(query4, (player_id,))
         
         except Exception as e:
             print(f"Error init player recipes for player ID {player_id}: {e}")
@@ -2758,8 +2221,6 @@ class UserService:
     def get_player_recipe1(self, player_id):
         '''
         Retrieves player recipe1 using player id
-        
-        change from fetchall ...
         '''
         cur = db.cursor()
         query = '''

@@ -1,0 +1,12 @@
+
+
+v1
+
+update player table -> MANA commented, inventory
+
+update items, new items, cups
+iventory items, non double/float
+
+
+implement try-catch statements
+

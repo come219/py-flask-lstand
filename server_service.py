@@ -3,7 +3,7 @@ from flask_caching import Cache
 from marshmallow import Schema, fields, ValidationError
 from marshmallow.validate import Range
 import datetime
-import pytz
+import pytz # python timezones
 import requests
 import socket
 import MySQLdb
@@ -69,6 +69,11 @@ class ServerService:
     ######
  
  
+    def post_server_info_by_id(self):
+        '''
+        server info by id
+        '''
+    
     def get_server_info(self):
         '''
         Intends to return the server_info table row
@@ -90,6 +95,9 @@ class ServerService:
         network_packet
         ?ip?
         ?load_balancer_ip?
+        
+        
+        implement server id search all for all server ids
         '''
         
         server_id = 1

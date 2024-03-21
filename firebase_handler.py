@@ -1,5 +1,5 @@
-import firebase_admin
-from firebase_admin import credentials, firestore
+# import firebase_admin
+# from firebase_admin import credentials, firestore
 
 
 # 735889828625
@@ -7,9 +7,10 @@ from firebase_admin import credentials, firestore
 class FirebaseHandler:
     def __init__(self):
         # Replace 'path/to/your/credentials.json' with the actual path to your Firebase service account key
-        cred = credentials.Certificate('firebase/earnest-vine-390414-firebase-adminsdk-dn7ry-c04a7de74b.json')
-        firebase_admin.initialize_app(cred)
-        self.db = firestore.client()
+        # cred = credentials.Certificate('firebase/earnest-vine-390414-firebase-adminsdk-dn7ry-c04a7de74b.json')
+        # firebase_admin.initialize_app(cred)
+        # self.db = firestore.client()
+        pass
 
     def get_scores(self):
         # Retrieve scores from Firebase Firestore

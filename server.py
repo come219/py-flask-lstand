@@ -1,3 +1,13 @@
+'''
+lstand server - 219
+
+    - flask
+    - mysql
+    
+
+'''
+
+
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_caching import Cache
 from marshmallow import Schema, fields, ValidationError
@@ -13,11 +23,40 @@ from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
 
+import jwt
+from datetime import datetime, timedelta
+
+from functools import wraps
+#from jwt.exceptions import InvalidTokenError
+#from jwt.exceptions import DecodeError
+
+
+
+# from flask_jwt_extended import jwt_required, get_jwt_identity
+
+import uuid
+
+import re
+
+from datetime import datetime, timedelta
+import threading
+import time
+
+# from flask_jwt import jwt_required
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, JWTManager
+
+
+from collections.abc import Mapping
+
+# Open the file api_jwt.py located at C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\venv\lib\site-packages\jwt\api_jwt.py.
+
+
 
 # flask
 app = Flask(__name__)
 CORS(app)
 app.config['CACHE_TYPE'] = 'simple'  # Use simple caching that uses a hashmap
+app.config['SECRET_KEY'] = 'lstand'
 cache = Cache()
 cache.init_app(app)
 
@@ -43,8 +82,10 @@ port = 8888
 host = "0.0.0.0"
 
 
+jwt_manager = JWTManager(app)
 
-scores = {"pete": 4, "john": 1, "timmy": 3}  # Some initial data for testing
+
+scores = {"bob": 4, "john": 1, "james": 3}  # Some initial data for testing
 
 
 firebase_handler = FirebaseHandler()    # Initialize FirebaseHandler
@@ -67,70 +108,339 @@ server_service = ServerService(app)         #server service
 #logging_service
 
 
+# secret_key = str(app.config['SECRET_KEY'])
 
 
-#######
+
+# Define a decorator for authentication
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+@app.route('/api/protected', methods=['GET'])
+@token_required
+def protected_resource():
+    """
+    A protected resource that requires a valid token for access.
+    """
+    return jsonify({'message': 'This is a protected resource!'})
+
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    '''
+    
+    - user login function:
+        - calls filter_by_username
+        - not calls filter_by_email
+        - calls valid_password
+ 
+    
+    login with email ..
+    
+    implement try-catch??
+    
+    {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Inh6MjhyZWNpcGUiLCJleHAiOjE3MTA2MTA2NjB9.6PGAaZzHWVsl3wowtIcpkVUwMwD7syst7fnbndeEFx4"
+    }
+    
+    - need to implement refresh / access tokens
+    
+    '''
+    # You'll need to implement your own login logic here.
+    # For demonstration purposes, let's assume you receive a username and password in JSON format.
+    try:
+        auth = request.get_json()
+
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return jsonify({'message': 'Could not verify'}), 401
+
+    
+        # Check if the username and password are correct (you need to implement this logic)
+        # Check if the username exists
+        # filter by username..
+        if user_service.filter_by_username(auth['username']):
+            # You can add password validation logic here
+            # For example: if valid_password(auth['username'], auth['password']):
+            # if not user or not user.check_password(auth['password']):
+            #     return jsonify({'message': 'Invalid credentials'}), 401
+            
+            # Retrieve the hashed password associated with the provided username from your database
+            hashed_password = user_service.get_hashed_password(auth['username'])
+            
+            #secret_key = str(app.config['SECRET_KEY'])
+            secret_key = str(app.config['SECRET_KEY'])
+            #secret_key = 'lstand'
+            
+            
+
+            
+            #validate_password
+            # Validate the password
+            if user_service.validate_password(auth['password'], hashed_password):
+                # Generate a JWT token
+                # token = jwt.encode({'username': auth['username'], 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, str(secret_key).encode('utf-8'))
+                token = jwt.encode({'username': auth['username'], 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, bytes(secret_key, 'utf-8'))
+                #return jsonify({'token': token.decode('UTF-8')})
+                return jsonify({'token': token})
+            else:
+                return jsonify({'message': 'Invalid password'}), 401
+        else:
+            return jsonify({'message': 'Invalid credentials'}), 401
+    except Exception as e:
+        return jsonify({'message': f'An error occurred: {e}'}), 500  
+        
+        
+        
+#######################
+##  refresh, access token
 #
-# server_service
+# Input Validation: Ensure that you validate the inputs received in the /login2 and /refresh routes. Validate the structure and content of the JSON payloads to prevent unexpected behavior or security vulnerabilities.
 #
-######
+# Authentication Middleware: Implement middleware to authenticate requests that require access tokens. This middleware can verify the access token before allowing access to protected routes, providing a centralized mechanism for authentication.
+# 
+# Token Expiration Strategy: Consider implementing a more flexible token expiration strategy. Instead of hardcoding token expiration times in the token generation functions, you can make these values configurable, allowing for easier adjustment or customization based on your application's needs.
+# 
+# Database Connection Pooling: Utilize database connection pooling to manage database connections more efficiently. This can improve the performance and scalability of your application by reducing the overhead of creating and closing database connections for each request.
+# 
+# Security Enhancements: Review your application's security measures regularly and stay updated on best practices for securing authentication systems. This includes measures such as securely storing sensitive data (e.g., secret keys, passwords), using HTTPS for communication, and implementing measures to prevent common security vulnerabilities like SQL injection and cross-site scripting (XSS).
+# 
+# Unit Testing: Implement unit tests to verify the correctness of your authentication-related functions and routes. Unit testing helps ensure that your code behaves as expected under various scenarios and reduces the risk of introducing regressions when making changes.
+# 
+# Documentation: Provide comprehensive documentation for your authentication system, including usage examples, endpoint descriptions, and error handling guidelines. Clear documentation helps developers understand how to use your API and troubleshoot issues effectively.
+# 
+# Rate Limiting: Consider implementing rate limiting to protect against brute-force attacks and prevent abuse of your authentication endpoints. Rate limiting can help mitigate the impact of malicious or excessive requests on your server's resources.
+#
+#
+#######################
 
-@app.route('/api/server/time', methods=['GET'])
-def get_server_time():
-    """
-    Get the current server time.
-    """
+
+
+
+@app.route('/login2', methods=['POST'])
+def login2():
+    '''
+    login for refresh, access token 
+    '''
     try:
-        server_time = server_service.get_server_time()
-        return jsonify({"success": True, "server_time": str(server_time)}), 200
-
+        auth = request.get_json()
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return jsonify({'message': 'Could not verify'}), 401
+        
+        # Check if the username exists
+        if user_service.filter_by_username(auth['username']):
+            # Retrieve the hashed password associated with the provided username
+            hashed_password = user_service.get_hashed_password(auth['username'])
+            
+            # Validate the password
+            if user_service.validate_password(auth['password'], hashed_password):
+                # Retrieve the user ID by username
+                user_id = user_service.get_player_id_by_username(auth['username'])
+                
+                # Check if the user ID is retrieved successfully
+                if user_id is not None:
+                    # Define the expiration time for the token
+                    expiration_time = datetime.utcnow() + timedelta(minutes=30)
+                    
+                    # Generate the JWT token with the "sub" claim set to the user ID
+                    secret_key = str(app.config['SECRET_KEY'])
+                    token_payload = {'sub': user_id, 'username': auth['username'], 'exp': expiration_time}
+                    token = jwt.encode(token_payload, bytes(secret_key, 'utf-8'))
+                    
+                    # Generate access and refresh tokens
+                    access_token = user_service.generate_access_token(user_id, secret_key)
+                    refresh_token = user_service.generate_refresh_token(user_id)
+                    
+                    # Store the refresh token securely
+                    user_service.store_refresh_token(user_id, refresh_token)
+                    
+                    # Return the access and refresh tokens
+                    return jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+                else:
+                    return jsonify({'message': 'User ID not found'}), 404
+            else:
+                return jsonify({'message': 'Invalid password'}), 401
+        else:
+            return jsonify({'message': 'Invalid credentials'}), 401 
     except Exception as e:
-        # Handle any exceptions and return an error response
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({'message': f'An error occurred: {e}'}), 500 
+
+
+
+@app.route('/login2_OLD', methods=['POST'])
+def login2_OLD():
+    '''
+    login for refresh, access token 
+    
+    
+    '''
+    try:
+        auth = request.get_json()
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return jsonify({'message': 'Could not verify'}), 401
         
         
-@app.route('/api/server/timezone', methods=['GET'])
-def get_server_timezone():
-    """
-    Get the current server timezone.
-    """
-    try:
-        server_timezone = server_service.get_server_timezone()
-        return jsonify({"success": True, "server_timezone": server_timezone}), 200
+        # Your login logic here... 
+        # Check if the username and password are correct
+        # Check if the username exists
+        # filter_by_username()
+        if user_service.filter_by_username(auth['username']):
+            # password validation logic
+            
+            # Retrieve the hashed password associated with the provided username from your database
+            hashed_password = user_service.get_hashed_password(auth['username'])
+            
+            secret_key = str(app.config['SECRET_KEY'])
+            
+            # Validate the password
+            # validate_password()
+            if user_service.validate_password(auth['password'], hashed_password):
+                # Generate a JWT token
+                
+                
+                # but need user_id -get user_id by username?
+                # Call the relevant service method to get player ID ('user_id') by username
+                # user_id = user_service.get_player_id_by_username(username)
+                
+                user_id = user_service.get_player_id_by_username(auth['username'])  # Assuming this method exists
+                
+                # expiration_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
 
-    except Exception as e:
-        # Handle any exceptions and return an error response
-        return jsonify({"success": False, "error": str(e)}), 500
+                # token = jwt.encode({'username': auth['username'], 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, bytes(secret_key, 'utf-8'))
+                
+                expiration_time = datetime.utcnow() + timedelta(minutes=30)
+                # token = jwt.encode({'username': auth['username'], 'exp': expiration_time}, bytes(secret_key, 'utf-8'))
 
+                # token = jwt.encode({'sub': user_id, 'exp': expiration_time}, bytes(secret_key, 'utf-8'))
+                token = jwt.encode({'sub': user_id, 'username': auth['username'], 'exp': expiration_time}, bytes(secret_key, 'utf-8'))
+
+               
+                # return jsonify({'token': token})
+                
+                # Part - 2, get access tokens, refresh_tokens..
         
-        
-@app.route('/api/server/location', methods=['GET'])
-def get_server_location():
-    """
-    Get the current server location.
-    """
-    try:
-        server_location = server_service.get_server_location()
-        return jsonify(server_location), 200
-
+            
+                # Assuming successful login
+                access_token = user_service.generate_access_token(user_id, secret_key)
+                refresh_token = user_service.generate_refresh_token(user_id)
+                
+                # Store the refresh token securely (e.g., in a database)
+                user_service.store_refresh_token(user_id, refresh_token)
+                
+                # return jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+                #return jsonify({'access_token': access_token.decode('UTF-8'), 'refresh_token': refresh_token.decode('UTF-8')})
+                return jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+               
+                
+            else:
+                return jsonify({'message': 'Invalid password'}), 401
+        else:
+            return jsonify({'message': 'Invalid credentials'}), 401 
     except Exception as e:
-        # Handle any exceptions and return an error response
-        return jsonify({"success": False, "error": str(e)}), 500
+                return jsonify({'message': f'An error occurred: {e}'}), 500 
+                
 
-
-
-@app.route('/api/server/connection', methods=['GET'])
-def get_server_connection():
-    """
-    Get the current server connection.
-    """
+@app.route('/api/verify-token', methods=['POST'])
+def verify_token():
+    '''
+    Endpoint to verify the validity of a JWT token (access).
+    
+    Expected JSON body:
+    {
+        "token": "JWT_access_token_here"
+    }
+    
+    Returns JSON response indicating token validity.
+    '''
     try:
-        connection = server_service.get_server_connection()
-        return jsonify(connection), 200
+        # Get the JWT token from the request
+        token = request.json.get('token')
 
+        # Validate input
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 400
+
+        try:
+            # Decode the JWT token payload
+            decoded_token = jwt.decode(token, options={"verify_signature": False})  # Don't verify signature for decoding payload only
+
+            if 'user_id' in decoded_token:
+                return jsonify({'valid': True, 'user_id': decoded_token['user_id']}), 200
+            else:
+                return jsonify({'valid': False, 'message': 'Token is missing "user_id" claim'}), 400
+
+
+
+            # Ensure the decoded token is a dictionary
+            # if not isinstance(decoded_token, dict):
+            #     raise jwt.DecodeError("Invalid token payload")
+            if 'sub' in decoded_token:
+                return jsonify({'valid': True, 'user_id': decoded_token['sub']}), 200
+            else:
+                return jsonify({'valid': False, 'message': 'Token is missing "sub" claim'}), 400
+
+
+            # Check if the "sub" claim is present in the payload
+            if 'sub' in decoded_token:
+                return jsonify({'valid': True, 'user_id': decoded_token['sub']}), 200
+            else:
+                return jsonify({'valid': False, 'message': 'Token is missing "sub" claim'}), 400
+        except jwt.ExpiredSignatureError:
+            # Handle expired token
+            return jsonify({'valid': False, 'message': 'Token is expired'}), 401
+        # except jwt.DecodeError:
+        #     # Handle invalid token
+        #     return jsonify({'valid': False, 'message': 'Invalid token'}), 401
+
+        # except InvalidTokenError:
+            # Handle invalid token
+            # return jsonify({'valid': False, 'message': 'Invalid token'}), 401
     except Exception as e:
-        # Handle any exceptions and return an error response
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({'valid': False, 'message': f'An error occurred: {e}'}), 500
+
+@app.route('/refresh', methods=['POST'])
+def refresh():
+    '''
+    user auth refresh token
+    
+    
+    '''
+    refresh_token = request.json.get('refresh_token')
+    
+    if not refresh_token:
+        return jsonify({'message': 'Refresh token is missing'}), 400
+    
+    user_id = user_service.verify_refresh_token(refresh_token)
+    secret_key = str(app.config['SECRET_KEY'])
+    try:
+        if user_id:
+            access_token = user_service.generate_access_token(user_id, secret_key)
+            return jsonify({'access_token': access_token})
+        else:
+            return jsonify({'message': 'Invalid refresh token'}), 401
+    # except InvalidTokenError:
+    #    return jsonify({'message': 'Invalid refresh token'}), 401
+    # except jwt.DecodeError:
+    #     # Handle invalid token
+    #     return jsonify({'valid': False, 'message': 'Invalid token'}), 401
+    except Exception as e:
+        return jsonify({'valid': False, 'message': f'An error occurred: {e}'}), 500
+
 
 
 
@@ -143,8 +453,145 @@ def get_server_connection():
 #
 #####
 
+# curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer your_jwt_token_here" -d '{"player_id": "25"}' http://localhost:8888/api2/players/avatar
 
-# player avatar
+
+
+@app.route('/api/player-id', methods=['POST'])
+def get_player_id_by_username():
+    '''
+    Endpoint to retrieve a player's ID by their username.
+    
+    Expected JSON body:
+    {
+        "username": "player_username_here"
+    }
+    
+    Returns JSON response with the player's ID if found.
+    '''
+    try:
+        # Get the username from the request
+        username = request.json.get('username')
+
+        if not username:
+            return jsonify({'message': 'Username is missing'}), 400
+
+        # Call the service method to get the player's ID
+        player_id = user_service.get_player_id_by_username(username)
+
+        if player_id is not None:
+            return jsonify({'success': True, 'player_id': player_id}), 200
+        else:
+            return jsonify({'success': False, 'message': f'No player found with username: {username}'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'An error occurred: {e}'}), 500
+
+
+
+
+
+
+
+
+'''
+Player Avatar Service
+
+table: player_avatar
++-------------------+--------+------+-----+---------+-------+
+| Field             | Type   | Null | Key | Default | Extra |
++-------------------+--------+------+-----+---------+-------+
+| player_id         | bigint | YES  | MUL | NULL    |       |
+| avatar_id         | int    | YES  |     | NULL    |       |
+| profile_border_id | int    | YES  |     | NULL    |       |
++-------------------+--------+------+-----+---------+-------+
+
+'''
+
+
+@app.route('/api2/players/avatar/change', methods=['POST'])
+@jwt_required()
+def post_player_avatar_change2():
+    """
+    # post_player_avatar_change by id with jwt
+    {
+       example json body using player_id and avatar_id
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        player_id = data.get('player_id')
+        avatar_id = data.get('avatar_id')
+
+        results = user_service.post_player_change_avatar(player_id, avatar_id )
+
+        if results is not None:
+            # Return the results as a JSON response
+            return jsonify({"success": True, "message": "Player avatar object retrieved successfully", "player_id": player_id, "avatar_obj": results}), 200
+        else:
+            return jsonify({"success": False, "message": "No player avatar object found for player ID", "player_id": player_id}), 404
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/players/avatar/change', methods=['POST'])
+def post_player_avatar_change():
+    """
+    # post_player_avatar_change by id
+    {
+       example json body using player_id and avatar_id
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        player_id = data.get('player_id')
+        avatar_id = data.get('avatar_id')
+
+        results = user_service.post_player_change_avatar(player_id, avatar_id )
+
+        if results is not None:
+            # Return the results as a JSON response
+            return jsonify({"success": True, "message": "Player avatar object retrieved successfully", "player_id": player_id, "avatar_obj": results}), 200
+        else:
+            return jsonify({"success": False, "message": "No player avatar object found for player ID", "player_id": player_id}), 404
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api2/players/avatar', methods=['POST'])
+@jwt_required()
+def post_player_avatar2():
+    """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    # post_player_avatar by id
+    {
+       example json body using player_id
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        player_id = data.get('player_id')
+
+        results = user_service.post_player_avatar_by_id(player_id)
+
+        if results is not None:
+            # Return the results as a JSON response
+            return jsonify({"success": True, "message": "Player avatar object retrieved successfully", "player_id": player_id, "avatar_obj": results}), 200
+        else:
+            return jsonify({"success": False, "message": "No player avatar object found for player ID", "player_id": player_id}), 404
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/api/players/avatar', methods=['POST'])
 def post_player_avatar():
     """
@@ -173,6 +620,46 @@ def post_player_avatar():
 
 
 
+'''
+Player Recipes Service
+
+    4 player recipe tables.
+    
+    
+    functions:
+        - get_player_recipe1():
+        - get_player_recipe2():
+        - get_player_recipe3():
+        - get_player_recipe4():
+        * post_player_recipe_rename():
+        * post_player_recipe_activate():
+        - post_player_recipe_update():
+        - post_player_recipe_default():
+        - post_player_recipe_default_init():
+        - post_player_recipe_use():
+
+
+
+Table: mysql> desc player_recipe1;
++-----------------+--------------+------+-----+---------+----------------+
+| Field           | Type         | Null | Key | Default | Extra          |
++-----------------+--------------+------+-----+---------+----------------+
+| id              | int          | NO   | PRI | NULL    | auto_increment |
+| recipe_name     | varchar(255) | YES  |     | NULL    |                |
+| player_id       | bigint       | YES  | MUL | NULL    |                |
+| recipe_active   | tinyint(1)   | YES  |     | NULL    |                |
+| quality         | varchar(255) | YES  |     | NULL    |                |
+| flavour_string  | varchar(255) | YES  |     | NULL    |                |
+| flavour_effects | json         | YES  |     | NULL    |                |
+| pricing         | double       | YES  |     | NULL    |                |
+| cups            | varchar(255) | YES  |     | NULL    |                |
+| ingredients     | json         | YES  |     | NULL    |                |
++-----------------+--------------+------+-----+---------+----------------+
+10 rows in set (0.00 sec)
+
+
+'''
+
 
 
 
@@ -194,6 +681,8 @@ def post_player_avatar():
 def get_player_recipe1():
     """
     # get_player_recipe1
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     {
        example json body using player_id
     }
@@ -222,6 +711,8 @@ def get_player_recipe1():
 def get_player_recipe2():
     """
     # get_player_recipe2
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     """
     try:
         data = request.json
@@ -239,6 +730,8 @@ def get_player_recipe2():
 def get_player_recipe3():
     """
     # get_player_recipe3
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     """
     try:
         data = request.json
@@ -256,6 +749,8 @@ def get_player_recipe3():
 def get_player_recipe4():
     """
     # get_player_recipe4
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     """
     try:
         data = request.json
@@ -271,10 +766,13 @@ def get_player_recipe4():
 
 
 @app.route('/api/players/recipes/rename', methods=['POST'])
-def post_player_recipe_rename():
+def post_player_recipes_rename():
     '''
     # post recipe rename
     Allows player to rename recipe without altering else
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     
     Potentially removing rename in recipe_update function
     
@@ -284,12 +782,32 @@ def post_player_recipe_rename():
     "player_id": 25
     }
     '''
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        recipe_table = data.get('recipe_table')
+        new_recipe_name = data.get('recipe_name')
+        player_id = data.get('player_id')
+
+        # Call the service method to rename the recipe
+        user_service.post_player_recipe_rename(recipe_table, new_recipe_name, player_id)
+
+        # Return success response
+        return jsonify({"success": True, "message": "Player recipe renamed successfully", "player_id": player_id}), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 
 @app.route('/api/players/recipes/activate', methods=['POST'])
 def post_player_recipe_activate():
     '''
     Allows player to active recipe without altering else in recipe
     Also triggers unactive for other recipes ..
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     
     Potentially removing active in recipe_update function??
     
@@ -307,6 +825,8 @@ def post_player_recipe_update():
     
     Updates  a singular targetted table recipe.
    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     
     
     body example:
@@ -380,7 +900,12 @@ def post_player_recipe_update():
 def post_player_recipes_use():
     """
     # post_player_recipe_use
+    
     API function to use chosen player recipe.
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
     "player_id": 25,
     "recipe_table": "player_recipe1",
@@ -403,6 +928,9 @@ def post_player_recipes_use():
 @app.route('/api/players/recipes/pitchers/use', methods=['POST'])
 def post_player_recipes_pitchers_use():
     """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     # post_player_recipe_picthers_use
     online edition - simple
     - requires current weather - simple string
@@ -489,6 +1017,10 @@ def post_player_recipe_default():
     """
     # post_player_recipe_default
     API function to default chosen player recipe.
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
     "player_id": 25,
     "recipe_table": "player_recipe1"
@@ -515,6 +1047,8 @@ def post_player_recipe_default_init():
     """
     # post_player_recipe_default
     
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     ?? why is this an api call.
     {
     }
@@ -536,18 +1070,73 @@ def post_player_recipe_default_init():
         
         
         
-        
-####
-#
-# player levels
-#
-###
+
+
+'''
+Player Levels Service
+
+
+    functions:
+    - post_level_xp_increase()
+    ? post_level_currentlevel_increase()
+    - get_player_levels()
+    - get_player_balance()
+    - get_player_mtx_coins()
+   
+    
+
+Table: mysql> desc player_levels;
++----------------+--------+------+-----+---------+-------+
+| Field          | Type   | Null | Key | Default | Extra |
++----------------+--------+------+-----+---------+-------+
+| player_id      | bigint | NO   | PRI | NULL    |       |
+| level_id       | bigint | NO   | PRI | NULL    |       |
+| current_level  | int    | YES  |     | NULL    |       |
+| achieved_level | int    | YES  |     | NULL    |       |
+| xp_level       | int    | YES  |     | NULL    |       |
++----------------+--------+------+-----+---------+-------+
+
+Levels: mysql> select * from levels;
++----+-----------+
+| id | name      |
++----+-----------+
+|  1 | campaign  |
+|  2 | openworld |
+|  3 | endday    |
+|  4 | trading   |
+|  5 | farming   |
+|  6 | fishing   |
+|  7 | mining    |
+|  8 | crafting  |
+|  9 | casino    |
+| 10 | fire      |
+| 11 | pool      |
+| 12 | magic     |
+| 13 | slayer    |
+| 14 | dungeon   |
+| 15 | rpg       |
+| 16 | combat    |
+| 17 | agility   |
+| 18 | summoning |
+| 19 | charisma  |
++----+-----------+
+19 rows in set (0.00 sec)
+
+
+
+
+
+
+'''
         
 
 
 @app.route('/api/players/levels/xp/increase', methods=['POST'])
 def post_level_xp_increase():
     """
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     {
         "player_id": "25",
         "level_id": "1",
@@ -577,6 +1166,9 @@ def post_level_xp_increase():
 @app.route('/api/players/levels', methods=['POST'])
 def get_player_levels():
     """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -603,7 +1195,10 @@ def get_player_levels():
 def get_player_balance():
     """
     
-    POTENTIALLY TO BE CHANGED IF BALANCE, <currencies> reimplemented into player table
+    OLD -> POTENTIALLY TO BE CHANGED IF BALANCE, <currencies> reimplemented into player table
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     
     {
         "id": "25"
@@ -627,7 +1222,9 @@ def get_player_balance():
 def get_player_mtx_coins():
     """
     
-    POTENTIALLY TO BE CHANGED IF <currencies> reimplemented into player table
+    OLD -> POTENTIALLY TO BE CHANGED IF <currencies> reimplemented into player table
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
     
     {
         "id": "25"
@@ -647,19 +1244,27 @@ def get_player_mtx_coins():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-##########################
-#
-# membership service
-#
-##########################
 
 
-# get_player_membership function
-#   -> to return all membership values using id
+'''
+Player Membership Service
+
+
+
+
+'''
+
 
 @app.route('/api/players/membership/bool', methods=['POST'])
 def get_player_membership_bool():
     """
+    
+    # get_player_membership function
+    #   -> to return all membership values using id
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     get_player_membership post function
     
     intends to retrieve membership boolean value
@@ -694,6 +1299,9 @@ def get_player_membership_timer():
     
     intends to retrieve membership timer value
     
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     body:
     {
         "id": "25"
@@ -714,13 +1322,30 @@ def get_player_membership_timer():
 
 
 
-##########################
-# streak service
-##########################
+'''
+Player Streak Service
+
+
+    functions: 
+    - get_player_streak()
+    * check_player_streak()
+    * get_player_streak_freeze_use()
+    * post_player_streak_freeze_use()
+    ? post_player_streak_life_use()
+    * post_player_streak_update()
+    * post_player_streak_save()
+    - post_player_streak_default()
+    - get_player_streak_highscores()
+    - post_player_streak_highscore()
+
+'''
 
 @app.route('/api/players/streak', methods=['POST'])
 def get_player_streak():
     """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -739,11 +1364,75 @@ def get_player_streak():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/players/streak/check', methods=['POST'])
+def get_player_streak_check():
+    """
+    gets the player_streak time and check if less or equal else default
+    
+    @jwt_required() ?? called by server
+    
+    body:
+    {
+        "id": "25"
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        id = data.get('id')
+
+        streak = user_service.get_streak_counter(id)
+
+        return jsonify({"success": True, "message": "Player streak checked successfully", "player_id": id, "streak": streak}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+@app.route('/api/players/streak/update', methods=['POST'])
+def post_player_streak_update():
+    """
+    updates the player_streak time and if less or equal else default
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    body:
+    {
+        "id": "25"
+    }
+    """
+    try:
+        # Extract data from the JSON request
+        data = request.json
+        id = data.get('id')
+
+        streak = user_service.get_streak_counter(id)
+
+        return jsonify({"success": True, "message": "Player streak update successfully", "player_id": id, "streak": streak}), 201
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"error, player streak update failed.": False, "error": str(e)}), 500
+
+'''
+Player Days Service
+
+    functions:
+    - increase_player_days()
+    * increase_player_days_value()
+    - get_player_days()
+
+'''
 
 
 @app.route('/api/players/days/increase', methods=['POST'])
 def increase_player_days():
     """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -765,8 +1454,10 @@ def increase_player_days():
 @app.route('/api/players/days', methods=['POST'])
 def get_player_days():
     """
-    
     TEST CHECK IF DOUBLE VALUE RETURN WORKS
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
     
     {
         "id": "25"
@@ -788,10 +1479,25 @@ def get_player_days():
        
 
 
+'''
+Player Lives Service
+
+    functions:
+    - post_player_lives()
+    * increase_player_lives_value()
+    * decrease_player_lives_value()
+    * check_player_lives_value()
+    * check_player_lives_effects()
+
+'''
+
 # post_player_lives():
 @app.route('/api/players/lives', methods=['POST'])
 def post_player_lives():
     """
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -805,17 +1511,37 @@ def post_player_lives():
         # Call the relevant service method to update player lives
         lives = user_service.get_player_lives(id)
 
-        return jsonify({"success": True, "message": "Player lives updated successfully", "player_id": id, "lives": lives}), 201
+        return jsonify({"success": True, "message": "Player lives retrieved successfully", "player_id": id, "lives": lives}), 201
 
     except Exception as e:
         # Handle any exceptions and return an error response
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# get player email
+'''
+Player Info Services
+
+    functions:
+    - post_player_email_by_id()
+    - post_player_username()
+    - post_player_id_by_username()
+    
+    
+
+
+'''
+
+
+
+
 @app.route('/api/players/email', methods=['POST'])
 def post_player_email_by_id():
     """
+    Get player Email
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -840,10 +1566,14 @@ def post_player_email_by_id():
 
 
 
-# post_player_username
 @app.route('/api/players/username', methods=['POST'])
 def post_player_username():
     """
+    post_player_username
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -855,6 +1585,10 @@ def post_player_username():
 
         # Call the relevant service method to update player username
         username =user_service.get_player_username(id)
+        
+        # Ensure all result sets are fetched before executing a new query
+        # while user_service.connection.more_results():
+        #     user_service.connection.next_result()
 
         return jsonify({"success": True, "message": "Player username retrieved successfully", "player_id": id, "username": username}), 201
 
@@ -863,10 +1597,14 @@ def post_player_username():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# post player_id by username
 @app.route('/api/players/id_by_username', methods=['POST'])
 def post_player_id_by_username():
     """
+    Post player_id by username
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "username": "new_username"
     }
@@ -886,10 +1624,25 @@ def post_player_id_by_username():
         return jsonify({"success": False, "error": str(e)}), 500
 
        
+'''
+Player Items Services
+
+    functions:
+    - get_player_items()
+    - post_player_items_buy_item()
+    
+    
+    
+
+'''
         
 @app.route('/api/players/items', methods=['POST'])
 def get_player_items():
     """
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
+    
+    
     {
         "id": "25"
     }
@@ -920,7 +1673,9 @@ def get_player_items():
 def post_player_items_buy_item():
     """
     
-    THIS WILL BE CHANGED IF <currencies> reimplemented into player table.
+    OLD -> THIS WILL BE CHANGED IF <currencies> reimplemented into player table.
+    
+    @jwt_required()  # Requires a valid JWT token to access this route
     
     
     {
@@ -952,9 +1707,39 @@ def post_player_items_buy_item():
 
 
 
+'''
+Player Services
+
+    functions:
+    - create_player()
+    - get_users()
+    - get_player()
+    
+    
+    
+    
+
+'''
+
+
 @app.route('/api/players/create', methods=['POST'])
 def create_player():
     """
+    Register & create player .. 
+    
+    {
+    "email": "z25@example.com",
+    "username": "z25",
+    "password": "securepassword",
+    "first_name": "2",
+    "last_name": "2",
+    "dob": "1990-01-01"
+    }
+
+    
+    
+    
+    
     {
         "email": "player@example.com",
         "username": "player123",
@@ -973,6 +1758,22 @@ def create_player():
         first_name = data.get('first_name')
         last_name = data.get('last_name')
         dob = data.get('dob')
+        
+        # Check if the email is in a valid format
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return jsonify({"success": False, "error": "Invalid email format"}), 400
+            
+            
+            
+        # password checker
+        # Check if the password is of valid length
+        # if len(password) < 8 or len(password) > 20:
+        #    return jsonify({"success": False, "error": "Password must be between 8 and 20 characters"}), 400
+
+        # Check if the password is strong
+        # if not re.match(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$", password):
+        #    return jsonify({"success": False, "error": "Password must contain at least one letter and one number"}), 400
+        
 
         # Create the player
         player_id = user_service.create_player(email, username, password, first_name, last_name, dob)
@@ -1005,17 +1806,146 @@ def get_player(username):
 
 
 # Schema used to validate scores POST payload so only specified fields are accepted
+# to be removed ..
 class ScoreSchema(Schema):
     name = fields.String(required=True, allow_none=False)
     score = fields.Integer(required=True, allow_none=False,
                            validate=[Range(min=1, error="Value must be greater than 0")])
 
+
+
+
+#######
+#
+# server_service
+#
+######
+
+
+@app.route('/api/server/info/id', methods=['POST'])
+def post_server_info_by_id():
+    """
+    POST method to get the current server info by id.
+    
+    """
+    try:
+        server_time = server_service.post_server_info_by_id()
+        return jsonify({"success": True, "server_time": str(server_time)}), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+ 
+
+@app.route('/api/server/info', methods=['GET'])
+def get_server_info():
+    """
+    Get the current server time.
+    """
+    try:
+        server_info = server_service.get_server_info()
+        return jsonify({"success": True, "server_info": str(server_info)}), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+        
+
+@app.route('/api/server/time', methods=['GET'])
+def get_server_time():
+    """
+    Get the current server time.
+    """
+    try:
+        server_time = server_service.get_server_time()
+        return jsonify({"success": True, "server_time": str(server_time)}), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+        
+        
+@app.route('/api/server/timezone', methods=['GET'])
+def get_server_timezone():
+    """
+    Get the current server timezone.
+    """
+    try:
+        server_timezone = server_service.get_server_timezone()
+        return jsonify({"success": True, "server_timezone": server_timezone}), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+        
+        
+@app.route('/api/server/location', methods=['GET'])
+def get_server_location():
+    """
+    Get the current server location.
+    """
+    try:
+        server_location = server_service.get_server_location()
+        return jsonify(server_location), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+
+@app.route('/api/server/connection', methods=['GET'])
+def get_server_connection():
+    """
+    Get the current server connection.
+    
+    Possibly related to hop worlds,
+    
+    Should increase player count?
+    """
+    try:
+        connection = server_service.get_server_connection()
+        print("server connection request")
+        return jsonify(connection), 200
+
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+
+
+'''
+Server Services
+
+
+'''
+
 @app.route('/ping', methods=['GET'])
 def ping():
+    '''
+    Ping function to the server.
+    GET Method
+    
+    If there is no response it returns an error or 404
+    else it will return pong, status 200.
+    '''
     return jsonify(status='pong'), 200
     
 @app.route('/pong', methods=['POST'])
 def pong():
+    '''
+    Pong function to the server.
+    POST Method
+    
+    If there is no response it returns an error or 404
+    else it will return ping, status 200.
+    
+    Old implementation:
+    '''
     # if body == "ping":
         # return "Received 'ping'."
     # elif body == "pong":
@@ -1043,8 +1973,7 @@ def index():
     
     
 is_server_online = True  # Change to False to simulate offline state
-            
-            
+                   
             
 @app.route('/offline')
 def offline():
@@ -1053,7 +1982,6 @@ def offline():
     '''
     return render_template('offline.html')
 
-
 @app.errorhandler(404)
 def not_found(error):
     '''
@@ -1061,26 +1989,94 @@ def not_found(error):
     '''
     return render_template('not_found.html'), 404
 
-
-
 @app.route('/flask_log.log')
 def serve_log_file():
+    '''
+    server function to send logs to a file.
+    
+    sends on start.
+    '''
     log_file_path = '/flask_log.log'  # Adjust the path accordingly
     return send_from_directory('.', 'flask_log.log', as_attachment=True)
-
-
-
 
 app.add_url_rule('/home','home', index)
 
 
 
-if __name__ == '__main__':
-    app.logger.info("Server start")
-    print("\n\nserver starting ...")
-    print("\n\n")
-    app.run(host=host, port=port, debug=True)
+def print_server_time():
+    '''
+    server function to print the time
+    
+    called at start & every 15 minutes
+    
+    '''
+    try:
+        while True:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print("\nServer time:", current_time)
+            # Wait for 15 minutes
+            next_time = datetime.now() + timedelta(minutes=15)
+            while datetime.now() < next_time:
+                # Check every second if 15 minutes have passed
+                time.sleep(1)
+    except Exception as e:
+            print(f"An error occurred: {e}")
 
+
+'''
+main python
+
+    runs the server.
+    
+    notes:
+    - multi-threading
+    - restarting
+    - backup/restore services
+    - sync servers
+    - auth impl.
+    - refactor services to class files
+
+'''
+if __name__ == '__main__':
+    try:
+        app.logger.info("Lstand Server Start.")
+        print("\n\nVersion 0.004, 19/3/24")
+        #print("\n\n")
+        print("\n\nServer starting ...")
+        #print("\n\n")
+        print("\n\nEnsure tables ...")
+        #print("\n\n")
+        print("\n\nRestoring backups ...")
+        print("\n\nSyncing servers ...")
+        #print("\n\n")
+        
+        print("\n\nInit tools ...")
+        print(" timer tool:")
+        # Start a separate thread to print server time every 15 minutes
+        thread = threading.Thread(target=print_server_time)
+        thread.daemon = True  # Set the thread as daemon
+        thread.start()
+        #thread.join() ? # Wait for it to finish
+        
+        print(" player count tool:")
+        print(" restart tool:")
+        print(" error tool:")
+        print("\n\n")
+        
+        
+        
+        app.run(host=host, port=port, debug=True)
+    except Exception as e:
+        # Log error when server encounters an exception
+        app.logger.error(f"An error occurred: {e}")
+    finally:
+        
+        # Log when server closes
+        app.logger.info("The Server has closed.")
+
+
+
+# main with mysql server check -> function
 # if __name__ == '__main__':
     # with app.app_context():
         # try:
@@ -1093,3 +2089,12 @@ if __name__ == '__main__':
             # # Ensure the cursor is closed even if an error occurs
             # cursor.close()
     # app.run(host=host, port=port)
+
+
+# print version, log etc
+
+# check backups, restore,
+
+# sync other servers
+
+# tools defs

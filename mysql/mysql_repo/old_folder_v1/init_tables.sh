@@ -92,19 +92,15 @@ execute_sql_file "player_shops.sql"
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_role.sql 
 
 
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_avatar.sql 
+#\. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_avatar.sql 
 
 # \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_security.sql 
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_update.sql
+# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_update.sql 
 
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_token.sql
+#\. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\server_info.sql 
+#\. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\server_info_insert.sql 
 
- 
-
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\server_info.sql 
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\server_info_insert.sql 
-
-# \. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_recipes.sql 
+#\. C:\Users\qqstj\OneDrive\Documents\GitHub\py-flask-lstand\mysql\mysql_repo\player_recipes.sql 
 
 
 # game_items_insert.sql
@@ -138,22 +134,5 @@ execute_sql_file "player_shops.sql"
 #		weather init
 #		init_avatar
 #		
-#
-###################################
-
-
-
-
-###################################
-#
-#	table reset:
-#
-# 	CREATE DATABASE lstand_db_3
-#
-#	- create db
-#	- create tables in db
-#	- insert into db
-#	- change config to db N where N = number (in userservice)
-#	- setup player 25
 #
 ###################################
