@@ -22,7 +22,7 @@ from flask_cors import CORS
 
 import logging
 from logging.handlers import RotatingFileHandler
-
+import bcrypt
 import jwt
 from datetime import datetime, timedelta
 
@@ -129,6 +129,8 @@ def token_required(f):
         return f(*args, **kwargs)
 
     return decorated
+
+
 
 
 @app.route('/api/protected', methods=['GET'])
@@ -260,7 +262,10 @@ def login2():
                     # Generate the JWT token with the "sub" claim set to the user ID
                     secret_key = str(app.config['SECRET_KEY'])
                     token_payload = {'sub': user_id, 'username': auth['username'], 'exp': expiration_time}
-                    token = jwt.encode(token_payload, bytes(secret_key, 'utf-8'))
+                    # token = jwt.encode(token_payload, bytes(secret_key, 'utf-8'))
+
+                    token = jwt.encode({'username': auth['username'], 'exp': expiration_time}, bytes(secret_key, 'utf-8'))
+
                     
                     # Generate access and refresh tokens
                     access_token = user_service.generate_access_token(user_id, secret_key)
@@ -456,6 +461,58 @@ def refresh():
 # curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer your_jwt_token_here" -d '{"player_id": "25"}' http://localhost:8888/api2/players/avatar
 
 
+def _verify_token(token):
+    try:
+        # Decode the JWT token payload
+        decoded_token = jwt.decode(token, options={"verify_signature": False})  # Don't verify signature for decoding payload only
+        
+        # Check if the "user_id" or "sub" claim is present in the decoded token
+        if 'user_id' in decoded_token:
+            return True, decoded_token['user_id']
+            print("verified token")
+        elif 'sub' in decoded_token:
+            return True, decoded_token['sub']
+            print("verified token")
+        else:
+            return False, "Missing user_id or sub claim in token"
+    except jwt.ExpiredSignatureError:
+        # Handle expired token
+        return False, "Expired JWT token"
+    except jwt.DecodeError:
+        # Handle invalid token
+        return False, "Invalid JWT token"
+    except Exception as e:
+        # Handle other exceptions
+        print(f"An error occurred: {e}")
+        return False, str(e)
+
+def verify_token2(token):
+    try:
+        # Extract the token from the "Bearer" prefix
+        token = token.split(" ")[1]
+        
+        # Decode the JWT token payload
+        decoded_token = jwt.decode(token, options={"verify_signature": False})  # Don't verify signature for decoding payload only
+        
+        # Check if the "user_id" or "sub" claim is present in the decoded token
+        if 'user_id' in decoded_token:
+            # print('verify_token', decoded_token['user_id'])
+            return decoded_token['user_id']
+        elif 'sub' in decoded_token:
+            return decoded_token['sub']
+        else:
+            raise ValueError("Missing user_id or sub claim in token")
+    except jwt.ExpiredSignatureError:
+        # Handle expired token
+        raise ValueError("Expired JWT token")
+    except jwt.DecodeError:
+        # Handle invalid token
+        raise ValueError("Invalid JWT token")
+    except Exception as e:
+        # Handle other exceptions
+        raise ValueError(f"An error occurred: {e}")
+
+
 
 @app.route('/api/player-id', methods=['POST'])
 def get_player_id_by_username():
@@ -518,10 +575,25 @@ def post_player_avatar_change2():
     }
     """
     try:
+        token = request.headers.get('Authorization')
+
+        #  # Ensure that the token exists
+        if not token:
+            return jsonify({"success": False, "error": "Missing JWT token"}), 401
+
+        
         # Extract data from the JSON request
         data = request.json
         player_id = data.get('player_id')
         avatar_id = data.get('avatar_id')
+
+        # Verify token
+        verify_id_or_error  = verify_token2(token)
+
+        if str(verify_id_or_error) != str(player_id):
+            return jsonify({"success": False, "error": "Player ID mismatch"}), 322
+
+
 
         results = user_service.post_player_change_avatar(player_id, avatar_id )
 
@@ -574,10 +646,78 @@ def post_player_avatar2():
        example json body using player_id
     }
     """
+
+    
+    secret_key = str(app.config['SECRET_KEY'])
+
+    
+
     try:
+
+        # # Extract the JWT token from the request headers
+        token = request.headers.get('Authorization')
+
+        #  # Ensure that the token exists
+        if not token:
+            return jsonify({"success": False, "error": "Missing JWT token"}), 401
+
+
+        # verify token call?
+        # valid, verify_id_or_error  = _verify_token(token)
+        
+
+        # token
+        # print("\n TOKEN :", token)
+    
+        
+        verify_id_or_error  = verify_token2(token)
+
+
+        # if not valid:
+        #  return jsonify({"success": False, "error": "error JWT token {}".format(verify_id_or_error )}), 401
+
+
+        #  # Decode the JWT token to get the payload
+        # try:
+        #     payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        # except jwt.ExpiredSignatureError:
+        #     return jsonify({"success": False, "error": "Expired JWT token"}), 401
+        # except jwt.InvalidTokenError:
+        #     return jsonify({"success": False, "error": "Invalid JWT token"}), 401
+
+
+
+        # # Get the current user's identity from the JWT token
+        # current_user = get_jwt_identity()
+        # 
+        # # Check if the "sub" claim is present in the JWT token
+        # if current_user.get('sub') is None:
+        #     return jsonify({"success": False, "error": "Missing 'sub' claim in JWT token"}), 400
+
+
         # Extract data from the JSON request
         data = request.json
         player_id = data.get('player_id')
+
+        # if verify_id_or_error is not None:
+           # If verify_id_or_error is not None, it means there was an error during token verification
+        #   return jsonify({"success": False, "error": verify_id_or_error}), 401        
+
+
+        
+
+        # print("verify_id_or_error:", verify_id_or_error)
+        # print('player_id:'+player_id)
+
+        # if verify_id_or_error.strip() != player_id.strip():
+        #    return jsonify({"success": False, "error": "Player ID mismatch"}), 322
+
+        if str(verify_id_or_error) != str(player_id):
+            return jsonify({"success": False, "error": "Player ID mismatch"}), 322
+
+
+        # if verify_id_or_error != player_id:
+        #    return jsonify({"success": False, "error": "Player ID mismatch"}), 322
 
         results = user_service.post_player_avatar_by_id(player_id)
 
@@ -676,7 +816,6 @@ Table: mysql> desc player_recipe1;
 
 
 
-
 @app.route('/api/players/recipes/1', methods=['POST'])
 def get_player_recipe1():
     """
@@ -704,7 +843,6 @@ def get_player_recipe1():
     except Exception as e:
         # Handle any exceptions and return an error response
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 # get_player_recipe2
 @app.route('/api/players/recipes/2', methods=['POST'])

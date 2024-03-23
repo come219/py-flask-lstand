@@ -111,9 +111,14 @@ class UserService:
         
         token = jwt.encode({'user_id': user_id, 'exp': expiration}, app.config['SECRET_KEY'])
         
-        access_token = jwt.encode({'user_id': user_id}, secret_key, algorithm='HS256')
+
+        # access_token = jwt.encode({'user_id': user_id}, secret_key, algorithm='HS256')
+        token = jwt.encode({'user_id': user_id, 'sub': user_id, 'exp': expiration}, secret_key, algorithm='HS256')
         # return token.decode('UTF-8')
-        return access_token
+        return token
+
+
+
 
     def generate_refresh_token(self, user_id):
         '''
@@ -493,7 +498,7 @@ class UserService:
 
         change from fetch all () ??
 
-        
+
         """
 
         cur = db.cursor()
